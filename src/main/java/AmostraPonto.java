@@ -1,6 +1,3 @@
-// src/main/java/AmostraPonto.java
-
-package com.lorenaavila;
 
 /**
  * Representa um único ponto de coleta de microplásticos (uma linha do CSV do AOMI).
@@ -8,12 +5,12 @@ package com.lorenaavila;
  */
 public class AmostraPonto {
     private double latitude;
+
     private double longitude;
-    // Sugestão de métrica: Densidade de Partículas (ex: particles/m³ ou particles/km²)
     private double densidadeParticulas; 
 
-    // O CSV do AOMI tem muitas outras colunas (data, tipo de rede, etc.).
-    // Podemos adicionar mais campos conforme a necessidade do projeto:
+    // O CSV do AOMI tem muitas outras colunas (data, tipo de rede, etc.).    
+    // talvez adiciomar mais 
     // private String dataAmostra;
     // private String equipamentoColeta;
     
@@ -24,7 +21,7 @@ public class AmostraPonto {
         this.densidadeParticulas = densidadeParticulas;
     }
 
-    // Métodos Getters: Permitem acessar os valores privados da classe
+    // Métodos Getters: Permitem acessar os valores privados da classe 
     public double getLatitude() {
         return latitude;
     }
@@ -37,7 +34,7 @@ public class AmostraPonto {
         return densidadeParticulas;
     }
 
-    // Método de Debugging útil
+    // Método de Debugging - imprime o ponto de amostra de forma legível
     @Override
     public String toString() {
         return String.format("AmostraPonto [Lat=%.2f, Lon=%.2f, Dens=%.2f]", 
