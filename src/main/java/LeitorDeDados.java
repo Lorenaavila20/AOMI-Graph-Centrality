@@ -13,12 +13,13 @@ public class LeitorDeDados{
         
         List<AmostraPonto> amostras = new ArrayList<>(); 
         
-        // 'linha' irá armazenar o array de strings de cada linha lida
-        String[] linha;  
-    
         try (FileReader fileReader = new FileReader(caminhoArquivo);
 
             CSVReader reader = new CSVReaderBuilder(fileReader).build()){ 
+
+            // 'linha' irá armazenar o array de strings de cada linha lida
+            String[] linha;  
+    
             boolean lendoMetadados = true;             
             
             // Loop para pular o cabeçalho (Metadados # + Linha de Nomes)
@@ -38,18 +39,18 @@ public class LeitorDeDados{
                     // 1. EXTRAIR OS DADOS e converter para double
                     double lat = Double.parseDouble(linha[44]);
                     
-                    // TODO: Implementar a Longitude (índice 46)
-                    double lon = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX; 
-                    
-                    // TODO: Implementar a Densidade (índice 193)
-                    double densidade = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX;
+                    double lon = Double.parseDouble(linha[46]);
+                
+                    double densidade = Double.parseDouble(linha[193]);
                     
                     // 2. CRIAR O OBJETO E ARMAZENAR
                     AmostraPonto amostra = new AmostraPonto(lat, lon, densidade);
                     amostras.add(amostra);
 
-                } catch (NumberFormatException e){
-                    // Se a linha tem um dado que não é número, apenas ignora
+                } catch (NumberFormatException e) {
+                    // Ignora a linha com erro de número
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    // Ignora a linha que não tem todas as 193 colunas (opcional, mas bom)
                 }
             }
                 
