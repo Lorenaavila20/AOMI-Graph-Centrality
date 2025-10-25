@@ -5,42 +5,61 @@ import java.util.HashMap;
 
 public class PreProcessador{
 
-    // Método principal que será preenchido em seguida
+    // DESAFIO 5: Agrupa todas as amostras em células de 1x1 grau
     public Map<String, List<AmostraPonto>> agruparPorCoordenadas(List<AmostraPonto> amostras){
-
+        
         Map<String, List<AmostraPonto>> celulas = new HashMap<>();
 
         for (AmostraPonto amostra : amostras){
             
             String chaveCelula = calcularChaveCelula(amostra.getLat(), amostra.getLon());
-
-            // 4. Lógica de Inserção no Mapa
-            // PESQUISA 1: Como verificar se uma chave JÁ EXISTE no HashMap?
-            if (!celulas.XXXXXXXXXXXXXXXXXXXX(chaveCelula)) {
-                
-                // AÇÃO 1: Se não existe, você deve criar uma nova lista 
-                // e associá-la à chave. (Dica: use celulas.put(...)).
-                celulas.XXXXXXXXXXXXXXXXXXXX;
+            
+            // Lógica de agrupamento: se a chave é nova, cria a lista; senão, adiciona à lista existente
+            if (!celulas.containsKey(chaveCelula)){
+                celulas.put(chaveCelula, new ArrayList<>());
             }
             
-            // PESQUISA 2: Como adicionar o objeto 'amostra' à lista que 
-            // já existe no mapa para essa chave? (Dica: use celulas.get(...) ).
-            celulas.XXXXXXXXXXXXXXXXXXXX;
+            celulas.get(chaveCelula).add(amostra);
         }
 
         return celulas;
     }
 
-    // O MÉTODO QUE VOCÊ VAI IMPLEMENTAR AGORA
+    // DESAFIO 6: Transforma a lista de amostras na Média de Densidade da célula
+    public Map<String, Double> calcularDensidadeMedia(Map<String, List<AmostraPonto>> celulasAgrupadas){
+
+        Map<String, Double> celulasMedias = new HashMap<>();
+
+        for (Map.Entry<String, List<AmostraPonto>> entry : celulasAgrupadas.entrySet()){
+            
+            String chaveCelula = entry.getKey();
+            List<AmostraPonto> amostrasNaCelula = entry.getValue();
+            
+            double somaDensidades = 0.0;
+            
+            // Soma todas as densidades
+            for (AmostraPonto amostra : amostrasNaCelula){
+                somaDensidades += amostra.getDensidade();
+            }
+            
+            int contagem = amostrasNaCelula.size();
+            
+            // Cálculo seguro da média
+            if (contagem > 0){
+                double densidadeMedia = somaDensidades / contagem;
+                celulasMedias.put(chaveCelula, densidadeMedia);
+            }
+        }
+
+        return celulasMedias;
+    }
+
+    // DESAFIO 4: Método auxiliar para criar a chave da célula (Math.floor)
     private String calcularChaveCelula(double lat, double lon){
         
-        // 1. Arredondar a Latitude
         double latChao = Math.floor(lat); 
-        
-        // 2. Arredondar a Longitude
         double lonChao = Math.floor(lon);
         
-        // 3. Formatar a chave: "LAT_LON"
         return latChao + "_" + lonChao;
     }
 }
