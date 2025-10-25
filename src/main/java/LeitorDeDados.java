@@ -19,7 +19,7 @@ public class LeitorDeDados{
 
             // 'linha' irá armazenar o array de strings de cada linha lida
             String[] linha;  
-    
+            
             boolean lendoMetadados = true;             
             
             // Loop para pular o cabeçalho (Metadados # + Linha de Nomes)
@@ -50,7 +50,6 @@ public class LeitorDeDados{
                 } catch (NumberFormatException e) {
                     // Ignora a linha com erro de número
                 } catch (ArrayIndexOutOfBoundsException e) {
-                    // Ignora a linha que não tem todas as 193 colunas (opcional, mas bom)
                 }
             }
                 
