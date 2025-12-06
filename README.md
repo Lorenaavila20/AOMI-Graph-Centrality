@@ -30,7 +30,7 @@ O foco didático está no uso de **Estruturas de Dados avançadas**, como mapas,
 
 ## 🌐 Estrutura Geral do Processamento
 
-1. **Leitura dos dados brutos (`.dat` da NOAA)**  
+1. **Leitura dos dados brutos (`.dat` da AOMI)**  
    Cada linha contém latitude, longitude e densidade medida.
 
 2. **Agrupamento das amostras**  
