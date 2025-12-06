@@ -16,7 +16,7 @@ Este projeto implementa uma **modelagem de fluxo de microplásticos no oceano** 
 - **Centralidade de Intermediação (Betweenness Centrality)**
 - **Dijkstra Híbrido** para rotas de menor custo
 - **Pré-processamento espacial** com células geográficas de **1° × 1°**
-- **Cálculo de densidade média e centróides** a partir das amostras da NOAA
+- **Cálculo de densidade média e centróides** a partir das amostras da AOMI
 
 O propósito é identificar:
 
