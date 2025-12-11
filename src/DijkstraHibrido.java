@@ -1,93 +1,91 @@
 import java.util.*;
 
 public class DijkstraHibrido {
-    
+
+    public static class ResultadoDijkstra {
+        public final Map<String, Double> dist;
+        public final Map<String, String> prev;
+        public ResultadoDijkstra(Map<String, Double> dist, Map<String, String> prev) {
+            this.dist = dist;
+            this.prev = prev;
+        }
+    }
+
     /**
-     * Dijkstra otimizado para COLETA de microplásticos.
-     * 
-     * Objetivo: Encontrar rota que MAXIMIZA coleta e MINIMIZA distância.
-     * 
-     * Custo = distância / (1 + k * densidade)
-     * 
-     * - Alta densidade -> custo MENOR (rota preferencial)
-     * - Baixa densidade -> custo MAIOR (evita)
-     * - k: fator de peso da densidade (quanto maior, mais prioriza densidade)
-     * 
-     * Exemplo com k=1:
-     * - Célula com densidade 10: custo = 100km / (1 + 1*10) = 9.09km
-     * - Célula com densidade 1:  custo = 100km / (1 + 1*1)  = 50km
-     * - Célula com densidade 0:  custo = 100km / 1 = 100km
+     * Versão que retorna distancias e predecessors (útil para comparar custos).
+     * Custo usado: distanciaKm / (1 + k * densidadeDestino)
      */
-    public static Map<String, String> dijkstra(
-        Grafo grafo,
-        String origem,
-        String destino,
-        double k
+    public static ResultadoDijkstra dijkstraFull(
+            Grafo grafo,
+            String origem,
+            String destino, // pode ser null -> roda completo
+            double k
     ) {
         Map<String, Double> dist = new HashMap<>();
         Map<String, String> prev = new HashMap<>();
-        Map<String, Double> densidadeColetada = new HashMap<>(); // NOVO: tracking de coleta
         Map<String, List<Aresta>> adj = grafo.getAdjacencia();
         Map<String, Double> dens = grafo.getNos();
         Set<String> visitados = new HashSet<>();
-        
-        for (String node : dens.keySet()) {
+
+        for (String node : adj.keySet()) {
             dist.put(node, Double.POSITIVE_INFINITY);
             prev.put(node, null);
-            densidadeColetada.put(node, 0.0);
+        }
+        if (!dist.containsKey(origem)) {
+            // origem inválida — retorna estruturas vazias para evitar NPE
+            return new ResultadoDijkstra(dist, prev);
         }
         dist.put(origem, 0.0);
-        
-        PriorityQueue<String> pq = new PriorityQueue<>(
-            Comparator.comparingDouble(dist::get)
-        );
+
+        PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparingDouble(dist::get));
         pq.add(origem);
-        
-        final double EPS = 1e-6;
-        
+
+        final double EPS = 1e-9;
+
         while (!pq.isEmpty()) {
             String u = pq.poll();
-            
             if (visitados.contains(u)) continue;
             visitados.add(u);
-            
-            if (u.equals(destino)) break;
-            
+
             double du = dist.get(u);
             if (du == Double.POSITIVE_INFINITY) break;
-            
+
+            if (destino != null && u.equals(destino)) {
+                // Parar cedo se chegamos ao destino pedido
+                break;
+            }
+
             for (Aresta e : adj.getOrDefault(u, Collections.emptyList())) {
                 String v = e.getDestino();
-                
-                if (visitados.contains(v)) continue;
-                
                 double distanciaKm = e.getPeso();
                 double densV = dens.getOrDefault(v, 0.0);
-                
-                // NOVO CÁLCULO: Prioriza alta densidade
-                // Custo diminui com densidade alta
+
                 double fatorDensidade = 1.0 + (k * densV);
                 double custo = distanciaKm / fatorDensidade;
-                
                 if (custo < EPS) custo = EPS;
-                
+
                 double alt = du + custo;
-                if (alt < dist.get(v)) {
+                if (alt + 1e-12 < dist.getOrDefault(v, Double.POSITIVE_INFINITY)) {
                     dist.put(v, alt);
                     prev.put(v, u);
-                    densidadeColetada.put(v, densidadeColetada.get(u) + densV);
                     pq.add(v);
                 }
             }
         }
-        
-        // Imprime estatísticas da rota encontrada
-        if (prev.get(destino) != null || origem.equals(destino)) {
-            System.out.println("\n=== ESTATÍSTICAS DA ROTA ===");
-            System.out.println("Custo total (ajustado): " + String.format("%.2f", dist.get(destino)));
-            System.out.println("Densidade coletada: " + String.format("%.4f", densidadeColetada.get(destino)));
-        }
-        
-        return prev;
+
+        return new ResultadoDijkstra(dist, prev);
+    }
+
+    /**
+     * Versão simples compatível com seu código existente: retorna apenas prev (mantida por compatibilidade).
+     */
+    public static Map<String, String> dijkstra(
+            Grafo grafo,
+            String origem,
+            String destino,
+            double k
+    ) {
+        ResultadoDijkstra r = dijkstraFull(grafo, origem, destino, k);
+        return r.prev;
     }
 }
