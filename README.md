@@ -292,7 +292,6 @@ Este projeto está licenciado sob a **Licença MIT** — veja `LICENSE` para det
 
 - **Repositório GitHub:** https://github.com/Lorenaavila20/AOMI-Graph-Centrality
 - **Base de Dados AOMI:** https://aomi.env.go.jp/
-- **Biblioteca JGraphT:** https://jgrapht.org/
 - **Documentação Java:** https://docs.oracle.com/javase/
 
 ---
