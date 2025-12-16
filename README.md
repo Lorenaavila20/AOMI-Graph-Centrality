@@ -154,7 +154,7 @@ onde:
 ```
 AOMI-GRAPH-CENTRALITY/
 ├── data/
-│   └── amostras.dat                    # Dados brutos da base AOMI
+│   └── survey_data.csv                    # Dados brutos da base AOMI
 │
 ├── src/
 │   ├── AmostraPonto.java               # Modelo de domínio
