@@ -29,3 +29,8 @@ replay_pid*
 
 regiao_*_edges.csv
 regiao_*_nodes.csv
+routes/
+graficos/
+resultados_dijkstra/
+*.csv
+*.txt

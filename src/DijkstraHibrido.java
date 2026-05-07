@@ -5,16 +5,21 @@ public class DijkstraHibrido {
     public static class ResultadoDijkstra {
         public final Map<String, Double> dist;
         public final Map<String, String> prev;
+
         public ResultadoDijkstra(Map<String, Double> dist, Map<String, String> prev) {
             this.dist = dist;
             this.prev = prev;
         }
     }
 
+    /**
+     * Dijkstra com custo híbrido:
+     * custo = (alpha * distancia) / (1 + beta * densidade)
+     */
     public static ResultadoDijkstra dijkstraFull(
             Grafo grafo,
             String origem,
-            String destino,
+            String destino, // pode ser null
             double alpha,
             double beta
     ) {
@@ -24,10 +29,7 @@ public class DijkstraHibrido {
         Map<String, Double> dens = grafo.getNos();
         Set<String> visitados = new HashSet<>();
 
-        // 🔹 NOVO: pegar min/max para normalização
-        double densMin = Collections.min(dens.values());
-        double densMax = Collections.max(dens.values());
-
+        // Inicialização
         for (String node : adj.keySet()) {
             dist.put(node, Double.POSITIVE_INFINITY);
             prev.put(node, null);
@@ -47,26 +49,17 @@ public class DijkstraHibrido {
             if (visitados.contains(u)) continue;
             visitados.add(u);
 
-            double du = dist.get(u);
-            if (du == Double.POSITIVE_INFINITY) break;
-
             if (destino != null && u.equals(destino)) break;
 
             for (Aresta e : adj.getOrDefault(u, Collections.emptyList())) {
                 String v = e.getDestino();
-                double distanciaKm = e.getPeso();
-                double densV = dens.getOrDefault(v, 0.0);
 
-                // 🔹 NORMALIZAÇÃO
-                double densNorm = (densV - densMin) / (densMax - densMin + 1e-9);
+                double distancia = e.getPeso();
+                double densidade = dens.getOrDefault(v, 0.0);
 
-                // 🔹 NOVA FUNÇÃO DE CUSTO
-                double custo = alpha * distanciaKm - beta * densNorm;
+                double custo = (alpha * distancia) / (1.0 + beta * densidade);
 
-                // 🔹 evitar custo negativo (necessário pro Dijkstra)
-                if (custo < 1e-6) custo = 1e-6;
-
-                double alt = du + custo;
+                double alt = dist.get(u) + custo;
 
                 if (alt < dist.getOrDefault(v, Double.POSITIVE_INFINITY)) {
                     dist.put(v, alt);
@@ -77,5 +70,18 @@ public class DijkstraHibrido {
         }
 
         return new ResultadoDijkstra(dist, prev);
+    }
+
+    /**
+     * Versão simplificada (compatibilidade)
+     */
+    public static Map<String, String> dijkstra(
+            Grafo grafo,
+            String origem,
+            String destino,
+            double alpha,
+            double beta
+    ) {
+        return dijkstraFull(grafo, origem, destino, alpha, beta).prev;
     }
 }
