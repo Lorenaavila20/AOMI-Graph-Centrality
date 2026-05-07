@@ -16,59 +16,59 @@ Desvio padrão: 3,327030
 
 Região   | Células    | Dist. Total(km) | Dens. Total     | Dens. Média     | Eficiência     
 ----------------------------------------------------------------------------------------------------
-0        | 24         |         2394,85 |       42,744849 |        1,781035 |        0,017849
-1        | 348        |        43497,32 |       43,801817 |        0,125867 |        0,001007
-2        | 811        |       102344,29 |      432,926380 |        0,533818 |        0,004230
-3        | 118        |        13432,06 |        0,913291 |        0,007740 |        0,000068
-4        | 283        |        32745,25 |       10,544050 |        0,037258 |        0,000322
-5        | 27         |         3569,94 |       11,566717 |        0,428397 |        0,003240
+0        | 22         |         1963,30 |       36,584566 |        1,662935 |        0,018634
+1        | 348        |        43492,44 |       43,802341 |        0,125869 |        0,001007
+2        | 804        |       101051,80 |      315,101158 |        0,391917 |        0,003118
+3        | 118        |        13433,83 |        0,914841 |        0,007753 |        0,000068
+4        | 283        |        32763,51 |       10,551123 |        0,037283 |        0,000322
+5        | 27         |         3474,24 |       11,566717 |        0,428397 |        0,003329
 6        | 68         |         8630,23 |       15,657500 |        0,230257 |        0,001814
-7        | 282        |        34468,68 |     1052,957655 |        3,733892 |        0,030548
-8        | 411        |        47177,02 |       25,162677 |        0,061223 |        0,000533
+7        | 261        |        31375,04 |      539,383162 |        2,066602 |        0,017191
+8        | 410        |        47031,82 |       20,789427 |        0,050706 |        0,000442
 
 ### COMPARAÇÃO ENTRE REGIÕES ###
 
-Região com MAIOR densidade coletável: Região 7 (1052,957655)
-Região com MELHOR eficiência: Região 7 (0,030548 dens/km)
-Região mais EXTENSA: Região 2 (102344,29 km)
+Região com MAIOR densidade coletável: Região 7 (539,383162)
+Região com MELHOR eficiência: Região 0 (0,018634 dens/km)
+Região mais EXTENSA: Região 2 (101051,80 km)
 
 ### TOP 5 REGIÕES PRIORITÁRIAS PARA COLETA ###
 
 
 1. REGIÃO 7
-   Células: 282
-   Densidade total: 1052,957655 partículas/m³
-   Distância: 34468,68 km
-   Eficiência: 0,030548 (dens/km)
-   Potencial de coleta: 52,67%
+   Células: 261
+   Densidade total: 539,383162 partículas/m³
+   Distância: 31375,04 km
+   Eficiência: 0,017191 (dens/km)
+   Potencial de coleta: 26,98%
 
 2. REGIÃO 2
-   Células: 811
-   Densidade total: 432,926380 partículas/m³
-   Distância: 102344,29 km
-   Eficiência: 0,004230 (dens/km)
-   Potencial de coleta: 21,65%
+   Células: 804
+   Densidade total: 315,101158 partículas/m³
+   Distância: 101051,80 km
+   Eficiência: 0,003118 (dens/km)
+   Potencial de coleta: 15,76%
 
 3. REGIÃO 1
    Células: 348
-   Densidade total: 43,801817 partículas/m³
-   Distância: 43497,32 km
+   Densidade total: 43,802341 partículas/m³
+   Distância: 43492,44 km
    Eficiência: 0,001007 (dens/km)
    Potencial de coleta: 2,19%
 
 4. REGIÃO 0
-   Células: 24
-   Densidade total: 42,744849 partículas/m³
-   Distância: 2394,85 km
-   Eficiência: 0,017849 (dens/km)
-   Potencial de coleta: 2,14%
+   Células: 22
+   Densidade total: 36,584566 partículas/m³
+   Distância: 1963,30 km
+   Eficiência: 0,018634 (dens/km)
+   Potencial de coleta: 1,83%
 
 5. REGIÃO 8
-   Células: 411
-   Densidade total: 25,162677 partículas/m³
-   Distância: 47177,02 km
-   Eficiência: 0,000533 (dens/km)
-   Potencial de coleta: 1,26%
+   Células: 410
+   Densidade total: 20,789427 partículas/m³
+   Distância: 47031,82 km
+   Eficiência: 0,000442 (dens/km)
+   Potencial de coleta: 1,04%
 
 ### RECOMENDAÇÕES OPERACIONAIS ###
 
@@ -76,13 +76,13 @@ Com base na análise dos dados, recomenda-se:
 
 1. Prioridade MÁXIMA: Região 7
    - Concentra a maior densidade de microplásticos
-   - Potencial de remoção: 1052,957655 partículas/m³
+   - Potencial de remoção: 539,383162 partículas/m³
 
 2. Prioridade ALTA: Região 2
    - Segunda maior concentração identificada
 
-3. Operação mais ECONÔMICA: Região 7
-   - Melhor relação custo-benefício (0,030548 dens/km)
+3. Operação mais ECONÔMICA: Região 0
+   - Melhor relação custo-benefício (0,018634 dens/km)
    - Ideal para navios com restrições de autonomia
 
 ================================================================================

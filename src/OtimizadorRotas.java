@@ -43,7 +43,8 @@ public class OtimizadorRotas {
         Map<String, List<Aresta>> adj = grafo.getAdjacencia();
 
         // Parâmetro k pequeno (priorizar cobertura)
-        final double K = 0.5;
+        double alpha = 1.0;
+        double beta = 0.5;
 
         // Enquanto houver nós não visitados dentro do subgrafo
         while (visitados.size() < nodesSet.size()) {
@@ -59,7 +60,7 @@ public class OtimizadorRotas {
 
             // Para cada candidato, roda Dijkstra até o candidato para obter custo do caminho
             // (poderia rodar uma só vez dijkstraFull(origem,null) e ler dist para todos; faremos isso para eficiência)
-            DijkstraHibrido.ResultadoDijkstra resultado = DijkstraHibrido.dijkstraFull(grafo, atual, null, K);
+            DijkstraHibrido.ResultadoDijkstra resultado = DijkstraHibrido.dijkstraFull(grafo, atual, null, alpha, beta);
             Map<String, Double> distFromAtual = resultado.dist;
             Map<String, String> prevFromAtual = resultado.prev;
 

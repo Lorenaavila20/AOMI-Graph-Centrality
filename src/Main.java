@@ -27,7 +27,7 @@ public class Main {
         // 4. Detecção de comunidades
         DetectorComunidades detector = new DetectorComunidades(grafo);
         Map<String, Integer> mapRegiao = detector.detectarComunidadesPorRegiao();
-        Map<Integer, List<String>> grupos = detector.agruparPorComunidade();
+        Map<Integer, List<String>> grupos = new TreeMap<>(detector.agruparPorComunidade());
         detector.imprimirEstatisticas(centroides, densidadesMedias);
         
         // 5. Otimização de rotas
@@ -43,6 +43,8 @@ public class Main {
         // 6. Gerar rotas por região
         System.out.println("\n=== GERANDO ROTAS OTIMIZADAS ===");
         
+        // DEBUG: ver ordem das regiões
+        System.out.println("Ordem das regiões: " + grupos.keySet());
         for (Map.Entry<Integer, List<String>> entry : grupos.entrySet()) {
             int idx = entry.getKey();
             List<String> nodes = entry.getValue();
@@ -54,6 +56,9 @@ public class Main {
             List<String> rota = opt.calcularRotaCobertura(nodes);
             OtimizadorRotas.EstatisticasRota stats = opt.calcularEstatisticas(rota);
             stats.imprimir("Regiao_" + idx);
+            System.out.println("Rota: " + rota);
+            System.out.println("Distância total (custo): " + stats.distanciaTotal);
+            System.out.println("Microplástico coletado: " + stats.densidadeTotal);
             
             // Armazenar estatísticas
             estatisticasRotas.put(idx, stats);
