@@ -1,57 +1,71 @@
 import java.util.*;
 
 public class Grafo {
+
     private Map<String, Double> nos;
     private Map<String, List<Aresta>> adjacencia;
-    private static final double CELL = 110.0;
+    private Map<String, double[]> centroides;
 
-    public Grafo(Map<String, Double> densidadesMedias) {
+    public Grafo(Map<String, Double> densidadesMedias,
+                 Map<String, double[]> centroides) {
         this.nos = densidadesMedias;
+        this.centroides = centroides;
         this.adjacencia = new HashMap<>();
         construirArestas();
     }
 
     private void construirArestas() {
+
         for (String chaveAtual : nos.keySet()) {
-            double[] c = parseChave(chaveAtual);
-            int cy = (int) c[0];
-            int cx = (int) c[1];
-            
+
             adjacencia.putIfAbsent(chaveAtual, new ArrayList<>());
-            
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dy == 0 && dx == 0) continue;
-                    
-                    String viz = String.format(Locale.US, "%.1f_%.1f", (double)(cy + dy), (double)(cx + dx));
-                    
-                    if (nos.containsKey(viz)) {
-                        double peso;
-                        if (dy == 0 || dx == 0) {
-                            peso = CELL;
-                        } else {
-                            peso = CELL * Math.sqrt(2);
-                        }
-                        adjacencia.get(chaveAtual).add(new Aresta(viz, peso));
-                    }
-                }
+
+            double[] a = centroides.get(chaveAtual);
+            if (a == null) continue;
+
+            for (String viz : nos.keySet()) {
+
+                if (viz.equals(chaveAtual)) continue;
+
+                double[] b = centroides.get(viz);
+                if (b == null) continue;
+
+                // ligação apenas para vizinhos próximos (otimização)
+                if (Math.abs(a[0] - b[0]) > 2 || Math.abs(a[1] - b[1]) > 2)
+                    continue;
+
+                double peso = haversine(a[0], a[1], b[0], b[1]);
+
+                adjacencia.get(chaveAtual).add(new Aresta(viz, peso));
             }
         }
     }
 
-    private double[] parseChave(String chave) {
-        String[] p = chave.split("_");
-        // Troca vírgula por ponto antes de fazer parse
-        double lat = Double.parseDouble(p[0].replace(",", "."));
-        double lon = Double.parseDouble(p[1].replace(",", "."));
-        return new double[]{lat, lon};
+    private double haversine(double lat1, double lon1,
+                             double lat2, double lon2) {
+
+        final double R = 6371.0;
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+
+        lat1 = Math.toRadians(lat1);
+        lat2 = Math.toRadians(lat2);
+
+        double a = Math.pow(Math.sin(dLat / 2), 2)
+                + Math.cos(lat1) * Math.cos(lat2)
+                * Math.pow(Math.sin(dLon / 2), 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
     }
 
-    public Map<String, List<Aresta>> getAdjacencia() { 
-        return adjacencia; 
+    public Map<String, List<Aresta>> getAdjacencia() {
+        return adjacencia;
     }
-    
-    public Map<String, Double> getNos() { 
-        return nos; 
+
+    public Map<String, Double> getNos() {
+        return nos;
     }
 }

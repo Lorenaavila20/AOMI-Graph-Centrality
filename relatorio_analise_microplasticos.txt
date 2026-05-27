@@ -7,82 +7,36 @@ RELATÓRIO COMPLETO DE ANÁLISE DE MICROPLÁSTICOS
 
 Total de células analisadas: 3300
 Total de regiões identificadas: 9
-Densidade média global: 0,605823 partículas/m³
-Densidade máxima: 77,575000 partículas/m³
-Densidade mínima: 0,000000 partículas/m³
+Densidade média global: 0,605823
+Densidade máxima: 77,575000
+Densidade mínima: 0,000000
 Desvio padrão: 3,327030
 
 ### ESTATÍSTICAS POR REGIÃO ###
 
-Região   | Células    | Dist. Total(km) | Dens. Total     | Dens. Média     | Eficiência     
-----------------------------------------------------------------------------------------------------
-0        | 22         |         1963,30 |       36,584566 |        1,662935 |        0,018634
-1        | 348        |        43492,44 |       43,802341 |        0,125869 |        0,001007
-2        | 804        |       101051,80 |      315,101158 |        0,391917 |        0,003118
-3        | 118        |        13433,83 |        0,914841 |        0,007753 |        0,000068
-4        | 283        |        32763,51 |       10,551123 |        0,037283 |        0,000322
-5        | 27         |         3474,24 |       11,566717 |        0,428397 |        0,003329
-6        | 68         |         8630,23 |       15,657500 |        0,230257 |        0,001814
-7        | 261        |        31375,04 |      539,383162 |        2,066602 |        0,017191
-8        | 410        |        47031,82 |       20,789427 |        0,050706 |        0,000442
+Região     | Células    | Dens. Total     | Dens. Média    
+------------------------------------------------------------
+0          | 104        | 206,661065      | 1,987126       
+1          | 297        | 47,367347       | 0,159486       
+2          | 737        | 322,439859      | 0,437503       
+3          | 117        | 0,796590        | 0,006808       
+4          | 257        | 9,191409        | 0,035764       
+5          | 34         | 11,051120       | 0,325033       
+6          | 158        | 23,220987       | 0,146968       
+7          | 352        | 1164,968988     | 3,309571       
+8          | 384        | 21,199963       | 0,055208       
 
-### COMPARAÇÃO ENTRE REGIÕES ###
+### TOP REGIÕES ###
 
-Região com MAIOR densidade coletável: Região 7 (539,383162)
-Região com MELHOR eficiência: Região 0 (0,018634 dens/km)
-Região mais EXTENSA: Região 2 (101051,80 km)
+1. Região 7 -> densidade total: 1164,968988
+2. Região 2 -> densidade total: 322,439859
+3. Região 0 -> densidade total: 206,661065
+4. Região 1 -> densidade total: 47,367347
+5. Região 6 -> densidade total: 23,220987
 
-### TOP 5 REGIÕES PRIORITÁRIAS PARA COLETA ###
+### RECOMENDAÇÕES ###
 
-
-1. REGIÃO 7
-   Células: 261
-   Densidade total: 539,383162 partículas/m³
-   Distância: 31375,04 km
-   Eficiência: 0,017191 (dens/km)
-   Potencial de coleta: 26,98%
-
-2. REGIÃO 2
-   Células: 804
-   Densidade total: 315,101158 partículas/m³
-   Distância: 101051,80 km
-   Eficiência: 0,003118 (dens/km)
-   Potencial de coleta: 15,76%
-
-3. REGIÃO 1
-   Células: 348
-   Densidade total: 43,802341 partículas/m³
-   Distância: 43492,44 km
-   Eficiência: 0,001007 (dens/km)
-   Potencial de coleta: 2,19%
-
-4. REGIÃO 0
-   Células: 22
-   Densidade total: 36,584566 partículas/m³
-   Distância: 1963,30 km
-   Eficiência: 0,018634 (dens/km)
-   Potencial de coleta: 1,83%
-
-5. REGIÃO 8
-   Células: 410
-   Densidade total: 20,789427 partículas/m³
-   Distância: 47031,82 km
-   Eficiência: 0,000442 (dens/km)
-   Potencial de coleta: 1,04%
-
-### RECOMENDAÇÕES OPERACIONAIS ###
-
-Com base na análise dos dados, recomenda-se:
-
-1. Prioridade MÁXIMA: Região 7
-   - Concentra a maior densidade de microplásticos
-   - Potencial de remoção: 539,383162 partículas/m³
-
-2. Prioridade ALTA: Região 2
-   - Segunda maior concentração identificada
-
-3. Operação mais ECONÔMICA: Região 0
-   - Melhor relação custo-benefício (0,018634 dens/km)
-   - Ideal para navios com restrições de autonomia
+Prioridade máxima: Região 7
+Prioridade alta: Região 2
 
 ================================================================================

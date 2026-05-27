@@ -106,16 +106,13 @@ public class OtimizadorRotas {
         return caminho;
     }
 
-    private double distanciaEuclidianaKm(String aKey, String bKey) {
+    private double distanciaKm(String aKey, String bKey) {
         double[] a = centroides.get(aKey);
         double[] b = centroides.get(bKey);
-
+    
         if (a == null || b == null) return 0.0;
-
-        double dx = a[0] - b[0];
-        double dy = a[1] - b[1];
-
-        return Math.sqrt(dx * dx + dy * dy) * 110.0;
+    
+        return GeoUtils.haversineKm(a[0], a[1], b[0], b[1]);
     }
 
     public EstatisticasRota calcularEstatisticas(List<String> rota) {
@@ -126,7 +123,7 @@ public class OtimizadorRotas {
         double densidadeTotal = 0;
 
         for (int i = 0; i < rota.size() - 1; i++) {
-            distanciaTotal += distanciaEuclidianaKm(rota.get(i), rota.get(i + 1));
+            distanciaTotal += distanciaKm(rota.get(i), rota.get(i + 1));
         }
 
         for (String n : rota) {
