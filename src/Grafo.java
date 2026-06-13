@@ -34,9 +34,18 @@ public class Grafo {
                 if (Math.abs(a[0] - b[0]) > 2 || Math.abs(a[1] - b[1]) > 2)
                     continue;
 
-                double peso = haversine(a[0], a[1], b[0], b[1]);
+                double distancia = haversine(a[0], a[1], b[0], b[1]);
 
-                adjacencia.get(chaveAtual).add(new Aresta(viz, peso));
+                double densidade = nos.getOrDefault(viz, 0.0);
+
+                // parâmetros do modelo 
+                double alpha = 1.0;
+                double beta = 0.5;
+
+                // fórmula híbrida
+                double peso = (alpha * distancia) / (1 + beta * densidade);
+
+                adjacencia.get(chaveAtual).add(new Aresta(viz, distancia, peso));
             }
         }
     }

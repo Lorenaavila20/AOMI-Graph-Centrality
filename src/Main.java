@@ -41,6 +41,7 @@ public class Main {
 
         // Estatísticas
         Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasRotas = new HashMap<>();
+        List<ResultadoRota> resultados = new ArrayList<>();
 
         // 6. Rotas por região
         System.out.println("\n=== GERANDO ROTAS OTIMIZADAS ===");
@@ -55,8 +56,10 @@ public class Main {
 
             System.out.printf("\n--- Região %d: nós=%d ---\n", idx, nodes.size());
 
+            long inicio = System.nanoTime();
             List<String> rota = opt.calcularRotaCobertura(nodes);
             OtimizadorRotas.EstatisticasRota stats = opt.calcularEstatisticas(rota);
+            long fim = System.nanoTime();
 
             stats.imprimir("Regiao_" + idx);
 
@@ -64,6 +67,16 @@ public class Main {
             System.out.println("Microplástico coletado: " + stats.densidadeTotal);
 
             estatisticasRotas.put(idx, stats);
+
+            ResultadoRota r = new ResultadoRota(
+                "DijkstraHibrido",
+                idx,
+                stats.distanciaTotal,
+                stats.densidadeTotal,
+                (fim - inicio) / 1_000_000.0
+            );
+            
+            resultados.add(r);
 
             // salvar rota CSV
             Path out = outDir.resolve(String.format("rota_regiao_%02d.csv", idx));
@@ -110,6 +123,14 @@ public class Main {
                 grafo
         );
 
+        System.out.println("\n=== COMPARAÇÃO DE RESULTADOS ===");
+        
+        // ordenar por eficiência (maior primeiro)
+        resultados.sort((a, b) -> Double.compare(b.getEficiencia(), a.getEficiencia()));
+
+        for (ResultadoRota r : resultados) {
+            r.imprimir();
+        }
         System.out.println("\n=== PROCESSAMENTO FINALIZADO ===");
     }
 

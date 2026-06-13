@@ -157,4 +157,24 @@ public class OtimizadorRotas {
                     distanciaTotal > 0 ? densidadeTotal / distanciaTotal : 0);
         }
     }
+
+    public ResultadoRota executarAlgoritmo(
+        String nomeAlgoritmo,
+        Collection<String> nodes
+    ) {
+        long inicio = System.nanoTime();
+    
+        List<String> rota = calcularRotaCobertura(nodes);
+        EstatisticasRota stats = calcularEstatisticas(rota);
+    
+        long fim = System.nanoTime();
+    
+        return new ResultadoRota(
+            nomeAlgoritmo,
+            -1, // região você coloca fora
+            stats.distanciaTotal,
+            stats.densidadeTotal,
+            (fim - inicio) / 1_000_000.0
+        );
+    }
 }
