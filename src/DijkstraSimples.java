@@ -16,64 +16,61 @@ public class DijkstraSimples {
 
         Map<String, Double> dist = new HashMap<>();
         Map<String, String> prev = new HashMap<>();
-        Set<String> visitados = new HashSet<>();
 
-        PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparingDouble(dist::get));
+        PriorityQueue<Map.Entry<String, Double>> pq =
+            new PriorityQueue<>(Map.Entry.comparingByValue());
 
+        // inicialização
         for (String n : nodes) {
             dist.put(n, Double.POSITIVE_INFINITY);
             prev.put(n, null);
         }
 
         dist.put(origem, 0.0);
-        pq.add(origem);
+        pq.add(new AbstractMap.SimpleEntry<>(origem, 0.0));
 
         while (!pq.isEmpty()) {
-            String atual = pq.poll();
+            
+            Map.Entry<String, Double> entry = pq.poll();
+            String atual = entry.getKey();
 
-            if (visitados.contains(atual)) continue;
-            visitados.add(atual);
-
-            for (Aresta a : grafo.getAdjacencia().getOrDefault(atual, new ArrayList<>())) {
+            for (Aresta a : grafo.getAdjacencia()
+                    .getOrDefault(atual, Collections.emptyList())) {
 
                 String vizinho = a.getDestino();
 
                 if (!nodes.contains(vizinho)) continue;
 
-                double novaDist = dist.get(atual) + a.getPeso();
+                double novaDist = dist.get(atual) + a.getDistancia();
 
                 if (novaDist < dist.get(vizinho)) {
                     dist.put(vizinho, novaDist);
                     prev.put(vizinho, atual);
-                    pq.add(vizinho);
+                    pq.add(new AbstractMap.SimpleEntry<>(vizinho, novaDist));
                 }
             }
         }
 
-        // 🔥 agora sim: reconstruir rota
-        return reconstruirCaminho(prev, origem);
-    }
+        // ✔ reconstruir caminho até o mais distante
+        String destino = null;
+        double maior = -1;
 
-    private List<String> reconstruirCaminho(Map<String, String> prev, String origem) {
-
-        List<String> rota = new ArrayList<>();
-
-        for (String node : prev.keySet()) {
-            List<String> caminho = new ArrayList<>();
-            String atual = node;
-
-            while (atual != null) {
-                caminho.add(atual);
-                atual = prev.get(atual);
-            }
-
-            Collections.reverse(caminho);
-
-            if (!caminho.isEmpty() && caminho.get(0).equals(origem)) {
-                rota.addAll(caminho);
+        for (String n : nodes) {
+            double d = dist.getOrDefault(n, Double.POSITIVE_INFINITY);
+            if (d != Double.POSITIVE_INFINITY && d > maior) {
+                maior = d;
+                destino = n;
             }
         }
 
+        List<String> rota = new ArrayList<>();
+
+        while (destino != null) {
+            rota.add(destino);
+            destino = prev.get(destino);
+        }
+
+        Collections.reverse(rota);
         return rota;
     }
 }

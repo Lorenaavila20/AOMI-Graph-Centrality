@@ -141,6 +141,11 @@ public class OtimizadorRotas {
         public double densidadeTotal;
         public double densidadeMedia;
 
+        public double getEficiencia() {
+            if (distanciaTotal == 0) return 0;
+            return densidadeTotal / distanciaTotal;
+        }
+
         public EstatisticasRota(int n, double dTotal, double densTotal, double densMedia) {
             this.numeroCelulas = n;
             this.distanciaTotal = dTotal;
@@ -153,8 +158,7 @@ public class OtimizadorRotas {
             System.out.printf("Células: %d\n", numeroCelulas);
             System.out.printf("Distância: %.2f km\n", distanciaTotal);
             System.out.printf("Densidade total: %.6f\n", densidadeTotal);
-            System.out.printf("Eficiência: %.6f\n",
-                    distanciaTotal > 0 ? densidadeTotal / distanciaTotal : 0);
+            System.out.printf("Eficiência: %.6f\n", getEficiencia());
         }
     }
 
@@ -174,7 +178,74 @@ public class OtimizadorRotas {
             -1, // região você coloca fora
             stats.distanciaTotal,
             stats.densidadeTotal,
-            (fim - inicio) / 1_000_000.0
+            (fim - inicio) / 1_000_000
         );
+    }
+
+    public List<String> calcularRotaSimples(List<String> nodes) {
+        if (nodes.isEmpty()) return new ArrayList<>();
+    
+        List<String> rota = new ArrayList<>();
+        Set<String> visitados = new HashSet<>();
+    
+        String atual = escolherNoSemente(new HashSet<>(nodes));
+        rota.add(atual);
+        visitados.add(atual);
+    
+        while (visitados.size() < nodes.size()) {
+    
+            String melhorProximo = null;
+            double melhorDist = Double.POSITIVE_INFINITY;
+    
+            Map<String, String> prev = DijkstraHibrido.dijkstra(
+                grafo,
+                atual,
+                null,
+                1.0,
+                0.0
+            );
+    
+            for (String candidato : nodes) {
+                if (visitados.contains(candidato)) continue;
+    
+                List<String> caminho = DijkstraHibrido.reconstruirCaminho(prev, atual, candidato);
+
+                if (caminho.isEmpty() || caminho.size() < 2) continue;
+
+                double dist = calcularDistanciaCaminho(caminho);
+                if (dist == 0) continue;
+    
+                if (dist < melhorDist) {
+                    melhorDist = dist;
+                    melhorProximo = candidato;
+                }
+            }
+    
+            if (melhorProximo == null) break;
+    
+            atual = melhorProximo;
+            rota.add(atual);
+            visitados.add(atual);
+        }
+    
+        return rota;
+    }
+
+    private double calcularDistanciaCaminho(List<String> caminho) {
+        double total = 0.0;
+    
+        for (int i = 0; i < caminho.size() - 1; i++) {
+            String u = caminho.get(i);
+            String v = caminho.get(i + 1);
+    
+            for (Aresta a : grafo.getAdjacencia().getOrDefault(u, new ArrayList<>())) {
+                if (a.getDestino().equals(v)) {
+                    total += a.getDistancia();
+                    break;
+                }
+            }
+        }
+    
+        return total;
     }
 }

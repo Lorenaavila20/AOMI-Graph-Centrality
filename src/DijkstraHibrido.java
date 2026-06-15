@@ -49,18 +49,20 @@ public class DijkstraHibrido {
 
         dist.put(origem, 0.0);
 
-        PriorityQueue<String> pq = new PriorityQueue<>(
-                Comparator.comparingDouble(dist::get)
-        );
-        pq.add(origem);
+        PriorityQueue<Map.Entry<String, Double>> pq =
+            new PriorityQueue<>(Map.Entry.comparingByValue());
+
+        pq.add(new AbstractMap.SimpleEntry<>(origem, 0.0));
 
         while (!pq.isEmpty()) {
-            String u = pq.poll();
+            Map.Entry<String, Double> atual = pq.poll();
+            String u = atual.getKey();
+
+            if (atual.getValue() > dist.get(u)) continue;
 
             if (visitados.contains(u)) continue;
             visitados.add(u);
 
-            // 🔥 conta nó explorado
             explorados++;
 
             // parada antecipada (importante pro A*)
@@ -69,7 +71,7 @@ public class DijkstraHibrido {
             for (Aresta e : adj.getOrDefault(u, Collections.emptyList())) {
                 String v = e.getDestino();
 
-                double distancia = e.getPeso();
+                double distancia = e.getDistancia();
                 double densidade = dens.getOrDefault(v, 0.0);
 
                 double custo = (alpha * distancia) / (1.0 + beta * densidade);
@@ -79,8 +81,7 @@ public class DijkstraHibrido {
                 if (alt < dist.getOrDefault(v, Double.POSITIVE_INFINITY)) {
                     dist.put(v, alt);
                     prev.put(v, u);
-                    pq.add(v);
-                }
+                    pq.add(new AbstractMap.SimpleEntry<>(v, alt));                }
             }
         }
 

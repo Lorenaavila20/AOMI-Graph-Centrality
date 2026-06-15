@@ -56,27 +56,50 @@ public class Main {
 
             System.out.printf("\n--- Região %d: nós=%d ---\n", idx, nodes.size());
 
-            long inicio = System.nanoTime();
-            List<String> rota = opt.calcularRotaCobertura(nodes);
-            OtimizadorRotas.EstatisticasRota stats = opt.calcularEstatisticas(rota);
-            long fim = System.nanoTime();
+            // 🔹 HÍBRIDO
+            long inicioH = System.nanoTime();
+            List<String> rotaH = opt.calcularRotaCobertura(nodes);
+            OtimizadorRotas.EstatisticasRota statsH = opt.calcularEstatisticas(rotaH);
+            long fimH = System.nanoTime();
 
-            stats.imprimir("Regiao_" + idx);
+            // 🔹 SIMPLES
+            long inicioS = System.nanoTime();
+            List<String> rotaS = opt.calcularRotaSimples(nodes);
+            OtimizadorRotas.EstatisticasRota statsS = opt.calcularEstatisticas(rotaS);
+            long fimS = System.nanoTime();
 
-            System.out.println("Distância total (custo): " + stats.distanciaTotal);
-            System.out.println("Microplástico coletado: " + stats.densidadeTotal);
+            // 🔹 PRINT BONITO
+            System.out.println("\nComparação:");
 
-            estatisticasRotas.put(idx, stats);
+            System.out.printf("Simples  -> Dist: %.2f | Dens: %.2f | Eff: %.6f\n",
+                    statsS.distanciaTotal,
+                    statsS.densidadeTotal,
+                    statsS.densidadeTotal / statsS.distanciaTotal);
 
-            ResultadoRota r = new ResultadoRota(
+            System.out.printf("Híbrido  -> Dist: %.2f | Dens: %.2f | Eff: %.6f\n",
+                    statsH.distanciaTotal,
+                    statsH.densidadeTotal,
+                    statsH.densidadeTotal / statsH.distanciaTotal);
+
+            // 🔹 mantém estatística do híbrido pro relatório
+            estatisticasRotas.put(idx, statsH);
+
+            // 🔹 salva resultados dos dois
+            resultados.add(new ResultadoRota(
                 "DijkstraHibrido",
                 idx,
-                stats.distanciaTotal,
-                stats.densidadeTotal,
-                (fim - inicio) / 1_000_000.0
-            );
-            
-            resultados.add(r);
+                statsH.distanciaTotal,
+                statsH.densidadeTotal,
+                (fimH - inicioH) / 1_000_000.0
+            ));
+
+            resultados.add(new ResultadoRota(
+                "DijkstraSimples",
+                idx,
+                statsS.distanciaTotal,
+                statsS.densidadeTotal,
+                (fimS - inicioS) / 1_000_000.0
+            ));
 
             // salvar rota CSV
             Path out = outDir.resolve(String.format("rota_regiao_%02d.csv", idx));
@@ -84,8 +107,8 @@ public class Main {
             try (BufferedWriter bw = Files.newBufferedWriter(out)) {
                 bw.write("ordem,celula,lat,lon,densidade\n");
 
-                for (int i = 0; i < rota.size(); i++) {
-                    String cel = rota.get(i);
+                for (int i = 0; i < rotaH.size(); i++) {
+                    String cel = rotaH.get(i);
 
                     double[] c = centroides.getOrDefault(cel, new double[]{0.0, 0.0});
                     double d = densidadesMedias.getOrDefault(cel, 0.0);
@@ -179,7 +202,7 @@ public class Main {
                             "%s,%s,%.4f\n",
                             entry.getKey(),
                             a.getDestino(),
-                            a.getPeso()));
+                            a.getDistancia()));
                 }
             }
         }
@@ -226,7 +249,7 @@ public class Main {
 
                         w.write(String.format(Locale.US,
                                 "%s,%s,%.4f\n",
-                                s, a.getDestino(), a.getPeso()));
+                                s, a.getDestino(), a.getDistancia()));
                     }
                 }
             }

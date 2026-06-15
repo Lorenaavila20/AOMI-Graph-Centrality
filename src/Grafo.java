@@ -16,37 +16,59 @@ public class Grafo {
 
     private void construirArestas() {
 
+        final double LIMITE_KM = 800; // ajuste fino aqui (600–1200 ideal)
+    
         for (String chaveAtual : nos.keySet()) {
-
+    
             adjacencia.putIfAbsent(chaveAtual, new ArrayList<>());
-
+    
             double[] a = centroides.get(chaveAtual);
             if (a == null) continue;
-
+    
+            List<Aresta> vizinhos = new ArrayList<>();
+    
             for (String viz : nos.keySet()) {
-
+    
                 if (viz.equals(chaveAtual)) continue;
-
+    
                 double[] b = centroides.get(viz);
                 if (b == null) continue;
-
-                // ligação apenas para vizinhos próximos (otimização)
-                if (Math.abs(a[0] - b[0]) > 2 || Math.abs(a[1] - b[1]) > 2)
-                    continue;
-
+    
                 double distancia = haversine(a[0], a[1], b[0], b[1]);
-
-                double densidade = nos.getOrDefault(viz, 0.0);
-
-                // parâmetros do modelo 
-                double alpha = 1.0;
-                double beta = 0.5;
-
-                // fórmula híbrida
-                double peso = (alpha * distancia) / (1 + beta * densidade);
-
-                adjacencia.get(chaveAtual).add(new Aresta(viz, distancia, peso));
+    
+                // conecta só se estiver dentro do raio
+                if (distancia <= LIMITE_KM) {
+                    vizinhos.add(new Aresta(viz, distancia, distancia));
+                }
             }
+    
+            //  GARANTIA DE CONECTIVIDADE 
+            if (vizinhos.isEmpty()) {
+    
+                String maisProximo = null;
+                double menorDist = Double.POSITIVE_INFINITY;
+    
+                for (String viz : nos.keySet()) {
+    
+                    if (viz.equals(chaveAtual)) continue;
+    
+                    double[] b = centroides.get(viz);
+                    if (b == null) continue;
+    
+                    double distancia = haversine(a[0], a[1], b[0], b[1]);
+    
+                    if (distancia < menorDist) {
+                        menorDist = distancia;
+                        maisProximo = viz;
+                    }
+                }
+    
+                if (maisProximo != null) {
+                    vizinhos.add(new Aresta(maisProximo, menorDist, menorDist));
+                }
+            }
+    
+            adjacencia.put(chaveAtual, vizinhos);
         }
     }
 
