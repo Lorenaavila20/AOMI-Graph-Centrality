@@ -32,7 +32,7 @@ public class ResultadoRota {
             distanciaTotal,
             densidadeTotal,
             eficiencia,
-            tempoExecucao / 1_000_000
+            tempoExecucao 
         );
     }
 
