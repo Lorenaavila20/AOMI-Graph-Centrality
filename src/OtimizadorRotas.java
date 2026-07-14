@@ -13,10 +13,7 @@ public class OtimizadorRotas {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DIJKSTRA HÍBRIDO — cobertura completa da região
-    // custo = (alpha * distancia) / (1 + beta * densidade)
-    // Expande para todos os destinos de uma vez (single-source),
-    // depois escolhe o melhor candidato não visitado.
+    // DIJKSTRA HÍBRIDO — cobertura completa da região (também usado p/ Simples com beta=0)
     // ─────────────────────────────────────────────────────────────────────────
     public List<String> calcularRotaCobertura(Collection<String> subgrafoNodes) {
         Set<String> nodesSet = new HashSet<>(subgrafoNodes);
@@ -76,8 +73,7 @@ public class OtimizadorRotas {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DIJKSTRA SIMPLES — cobertura sem peso de densidade (beta = 0)
-    // Minimiza apenas distância geográfica.
+    // DIJKSTRA SIMPLES (beta = 0)
     // ─────────────────────────────────────────────────────────────────────────
     public List<String> calcularRotaSimples(List<String> nodes) {
         if (nodes.isEmpty()) return new ArrayList<>();
@@ -94,7 +90,6 @@ public class OtimizadorRotas {
             String melhorProximo = null;
             double melhorDist    = Double.POSITIVE_INFINITY;
 
-            // beta = 0 → sem influência de densidade → Dijkstra puro por distância
             Map<String, String> prev = DijkstraHibrido.dijkstra(grafo, atual, null, 1.0, 0.0);
 
             for (String candidato : nodes) {
@@ -123,9 +118,7 @@ public class OtimizadorRotas {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // A* — cobertura ponto-a-ponto com heurística haversine
-    // Diferença fundamental: recebe um destino fixo a cada chamada e usa
-    // a heurística para guiar a busca até ele, podando ramos desnecessários.
+    // A*
     // ─────────────────────────────────────────────────────────────────────────
     public ResultadoCobertura calcularRotaCobertura_AEstrela(Collection<String> subgrafoNodes,
                                                               Map<String, double[]> centroidesGlobais) {
@@ -152,8 +145,6 @@ public class OtimizadorRotas {
             }
             if (candidatos.isEmpty()) break;
 
-            // A* exige destino fixo: escolhemos o candidato geograficamente
-            // mais próximo do nó atual como alvo desta chamada.
             String alvo = escolherCandidatoMaisProximo(atual, candidatos, centroidesGlobais);
             if (alvo == null) break;
 
@@ -165,7 +156,6 @@ public class OtimizadorRotas {
             List<String> caminho = AStar.reconstruir(resultado.prev, atual, alvo);
 
             if (caminho.isEmpty() || caminho.size() < 2) {
-                // sem caminho válido: avança diretamente para o alvo
                 visitados.add(alvo);
                 rotaFinal.add(alvo);
                 atual = alvo;
@@ -184,9 +174,18 @@ public class OtimizadorRotas {
         return new ResultadoCobertura(rotaFinal, totalNosExplorados);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // UTILITÁRIOS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // BUSCA LOCAL 2-OPT — implementação em BuscaLocal2Opt.java
+    // ═════════════════════════════════════════════════════════════════════════
+    /**
+     * Refina uma rota já construída (Simples, Híbrida ou A*) reordenando as
+     * células visitadas para reduzir a distância total percorrida.
+     * Ver BuscaLocal2Opt.java para a implementação e a justificativa de por
+     * que isso não altera a densidade total coletada.
+     */
+    public List<String> aplicar2Opt(List<String> rotaOriginal) {
+        return BuscaLocal2Opt.aplicar(rotaOriginal, centroides);
+    }
 
     private String escolherCandidatoMaisProximo(String atual, List<String> candidatos,
                                                  Map<String, double[]> centroidesGlobais) {
@@ -282,7 +281,7 @@ public class OtimizadorRotas {
         Set<String> jaContados = new HashSet<>(rota);
         for (String n : jaContados) {
             densidadeTotal += densidades.getOrDefault(n, 0.0);
-}
+        }
 
         double media = densidadeTotal / rota.size();
         return new EstatisticasRota(rota.size(), distanciaTotal, densidadeTotal, media);
@@ -293,8 +292,8 @@ public class OtimizadorRotas {
         public double distanciaTotal;
         public double densidadeTotal;
         public double densidadeMedia;
-        public double tempoMs       = 0.0; // ✅ tempo médio de execução (média de 10 runs)
-        public int    nosExplorados = 0;   // ✅ total de nós expandidos (A* e Híbrido)
+        public double tempoMs       = 0.0;
+        public int    nosExplorados = 0;
 
         public EstatisticasRota(int n, double dTotal, double densTotal, double densMedia) {
             this.numeroCelulas  = n;
@@ -308,8 +307,6 @@ public class OtimizadorRotas {
             return densidadeTotal / distanciaTotal;
         }
 
-        // ✅ eficiência normalizada pelo número de células visitadas
-        // torna os três algoritmos comparáveis mesmo visitando quantidades diferentes
         public double getEficienciaNormalizada() {
             if (distanciaTotal == 0 || numeroCelulas == 0) return 0;
             return (densidadeTotal / numeroCelulas) / distanciaTotal;
@@ -321,15 +318,10 @@ public class OtimizadorRotas {
             System.out.printf("Distância:        %.2f km%n",  distanciaTotal);
             System.out.printf("Densidade total:  %.6f%n",     densidadeTotal);
             System.out.printf("Eficiência:       %.6f%n",     getEficiencia());
-            System.out.printf("Eff. normalizada: %.6f%n",     getEficienciaNormalizada());
             System.out.printf("Tempo médio:      %.2f ms%n",  tempoMs);
             System.out.printf("Nós explorados:   %d%n",       nosExplorados);
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // CLASSES DE RESULTADO
-    // ─────────────────────────────────────────────────────────────────────────
 
     public static class ResultadoCobertura {
         public List<String> rota;
@@ -341,7 +333,6 @@ public class OtimizadorRotas {
         }
     }
 
-    // mantido por compatibilidade com código existente
     public ResultadoRota executarAlgoritmo(String nomeAlgoritmo, Collection<String> nodes) {
         long inicio = System.nanoTime();
         List<String> rota       = calcularRotaCobertura(nodes);
