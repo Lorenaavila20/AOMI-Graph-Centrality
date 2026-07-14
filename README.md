@@ -1,8 +1,8 @@
 # AOMI-Graph-Centrality
 ## Modelagem e Otimização de Rotas de Coleta de Microplásticos com Teoria dos Grafos
 
-[![Linguagem](https://img.shields.io/badge/Linguagem-Java-orange.svg)](https://www.java.com/)  
-[![Versão](https://img.shields.io/badge/Versão-experimento--densidade-green.svg)]()  
+[![Linguagem](https://img.shields.io/badge/Linguagem-Java-orange.svg)](https://www.java.com/)
+[![Disciplina](https://img.shields.io/badge/Disciplina-AEDSII-blue.svg)]()
 [![Licença](https://img.shields.io/badge/Licença-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -13,18 +13,18 @@ Este repositório implementa computacionalmente a pesquisa:
 
 > **"Modelagem e Otimização de Rotas de Navios Coletores de Microplásticos em Grandes Massas Oceânicas Utilizando Teoria dos Grafos e Algoritmos de Caminho Mínimo"**
 
-A solução integra **Teoria dos Grafos**, **Algoritmo de Dijkstra adaptado** para otimização multiobjetivo (custo-densidade), **detecção de comunidades via Louvain**, e dados reais da base **AOMI (Atlantic and Oceanic Microplastics Index)** para identificar estratégias eficientes de coleta de poluentes marinhos.
+A solução integra **Teoria dos Grafos**, quatro estratégias de roteamento (**Dijkstra Simples**, **Dijkstra Híbrido** multiobjetivo custo-densidade, **A\*** com heurística geodésica, e refinamento por **busca local 2-opt**), classificação regional por bacia oceânica, e dados reais da base **AOMI (Atlas of Ocean Microplastics)**, mantida pelo Ministério do Meio Ambiente do Japão.
 
-**Achado Principal:** A Região 7 (Atlântico Sul) é atualmente identificada como região dominante, concentrando alta carga de microplásticos em território geograficamente delimitado, fundamentando uma alocação de frota altamente eficiente.
+**Achado Principal:** A Região 4 (Índico) concentra **55,7% da carga total** de microplásticos observada, seguida pela Região 7 — Atlântico Sul (24,3%). O A\* iguala ou supera a eficiência do Híbrido na maioria das regiões rodando em ~1/15 do tempo; após refinamento por 2-opt, o **Híbrido+2opt** passa a ser o mais eficiente na maioria das regiões (inclusive no Índico), enquanto o **A\*+2opt** chega a 97% dessa eficiência gastando ~12× menos tempo total.
 
 ---
 
 ## 🎯 Objetivos da Pesquisa
 
 1. **Modelar a distribuição global de microplásticos** como grafo ponderado discretizado em células $1° \times 1°$;
-2. **Identificar bacias oceânicas prioritárias** através de detecção de comunidades (Algoritmo de Louvain);
-3. **Otimizar rotas** considerando simultaneamente distância geográfica real e densidade de poluentes;
-4. **Gerar múltiplas rotas por comunidade** para viabilizar operações paralelas de navios coletores.
+2. **Identificar bacias oceânicas prioritárias** através de classificação geográfica regional;
+3. **Otimizar rotas** considerando simultaneamente distância geográfica e densidade de poluentes, comparando estratégias de busca distintas;
+4. **Refinar as rotas construídas** com busca local, medindo o ganho de cada estratégia de construção.
 
 ---
 
@@ -32,73 +32,89 @@ A solução integra **Teoria dos Grafos**, **Algoritmo de Dijkstra adaptado** pa
 
 ### Representação Espacial e Grafo
 
-- **Discretização:** Oceano modelado como grid de células geográficas $1° \times 1°$;
-- **Vértices:** Células com dados válidos de concentração de microplásticos;
-- **Arestas:** Conexões entre células adjacentes via **8-vizinhança (Moore)**;
-- **Pesos:** Função de custo híbrida custo-densidade para balanceamento multiobjetivo.
+- **Discretização:** Oceano modelado como grid de células geográficas $1° \times 1°$, agregando amostras por média de densidade e centroide;
+- **Vértices:** Células com dados válidos de concentração de microplásticos (3.300 células não vazias);
+- **Arestas:** Conectam pares de células cuja distância de Haversine entre centroides seja ≤ 800 km; células que ficariam isoladas por esse limiar são conectadas ao vizinho mais próximo, garantindo conectividade total do grafo;
+- **Pesos:** Função de custo híbrida custo-densidade, calculada em `DijkstraHibrido.java` e reaproveitada por `AStar.java`.
 
 ### Função de Custo Híbrida
 
-A otimização multiobjetivo utiliza:
+$$c(u,v) = \frac{\alpha \cdot d(u,v)}{1 + \beta \cdot \rho(v)}$$
 
-$$C(v_i, v_j) = \frac{\alpha \cdot d(v_i, v_j)}{1 + \beta \cdot \rho(v_j)}$$
+| Parâmetro | Descrição | Valor adotado |
+|-----------|-----------|----------------|
+| $d(u,v)$ | Distância geográfica (Haversine, WGS-84) em km | — |
+| $\rho(v)$ | Densidade média de microplásticos na célula destino | — |
+| $\alpha$ | Peso do custo de deslocamento | 1,0 |
+| $\beta$ | Peso do benefício de coleta | 0,5 (Híbrido/A\*) / 0 (Simples) |
 
-onde:
+### Classificação Regional
 
-| Parâmetro | Descrição |
-|-----------|-----------|
-| $d(v_i, v_j)$ | Distância geográfica real (fórmula de Haversine, WGS-84) em km |
-| $\rho(v_j)$ | Densidade normalizada de microplásticos no vértice destino |
-| $\alpha$, $\beta$ | Fatores de balanceamento entre custo de navegação e potencial de coleta |
+As 3.300 células são agrupadas em **9 regiões oceânicas** por **caixas fixas de latitude/longitude** (Atlântico Norte/Sul, Pacífico Norte/Sul/Equatorial, Índico, Mediterrâneo, Mar da China, e "Outras Regiões" para o que sobra). **Isto não é detecção de comunidades por modularidade (Louvain)** — ver a seção "Por que não Louvain?" abaixo para a justificativa dessa escolha.
 
-**Interpretação:** Penaliza rotas longas e favorece rotas de alta densidade, balanceados pelos parâmetros $\alpha$ e $\beta$.
+### Algoritmos de Roteamento Implementados
 
-### Algoritmos Implementados
+| Algoritmo | Propósito | Parâmetros | Referência |
+|-----------|-----------|------------|------------|
+| **Dijkstra Simples** | Caminho de menor distância pura | $\beta=0$ | Dijkstra, 1959 |
+| **Dijkstra Híbrido** | Caminho de menor custo multiobjetivo | $\alpha=1$, $\beta=0,5$ | Dijkstra, 1959 |
+| **A\*** | Busca ponto-a-ponto com heurística Haversine, mesma função de custo do Híbrido | $\alpha=1$, $\beta=0,5$ | Hart, Nilsson & Raphael, 1968 |
+| **Busca local 2-opt** | Refinamento de pós-processamento: reordena a rota já construída para reduzir distância, sem alterar quais células são visitadas | — | Croes, 1958 |
 
-| Algoritmo | Propósito | Referência |
-|-----------|-----------|-----------|
-| **Dijkstra Híbrido** | Cálculo de caminhos de menor custo com função multiobjetivo | [Dijkstra, 1959] |
-| **Louvain** | Detecção de comunidades via otimização de modularidade | [Blondel et al., 2008] |
-| **Betweenness Centrality** | Identificação de gargalos e rotas críticas nas comunidades | [Freeman, 1977] |
+Os três primeiros constroem a rota de cobertura por expansão gulosa; o 2-opt é aplicado depois, sobre a saída de cada um dos três.
 
 ---
 
 ## 📊 Resultados Principais
 
-### Estrutura do Grafo Global
+### Distribuição de Densidade por Região
 
-| Métrica | Valor |
-|---------|-------|
-| Vértices ($n$) | 3.300 |
-| Arestas ($m$) | 11.781 |
-| Densidade ($\delta$) | 0,00182 |
-| Grau Médio ($\bar{k}$) | 7,13 |
-| Diâmetro | 247 |
-| Modularidade ($Q$) | 0,742 |
-| Regiões Detectadas | 9 |
+| Rank | Região (ID) | Nome | Células | Densidade Total (p/m³) | Participação |
+|------|-------------|------|---------|--------------------------|---------------|
+| 1 | 4 | Índico | 461 | 1.114,42 | 55,7% |
+| 2 | 7 | Atlântico Sul | 278 | 485,89 | 24,3% |
+| 3 | 2 | Pacífico Equatorial | 602 | 163,98 | 8,2% |
+| 4 | 0 | Outras/não classificadas | 108 | 133,04 | 6,7% |
+| 5 | 8 | Pacífico Sul | 674 | 52,42 | 2,6% |
+| 6 | 6 | Mediterrâneo | 164 | 19,73 | 1,0% |
+| 7 | 5 | Mar da China | 146 | 19,47 | 1,0% |
+| 8 | 3 | Atlântico Norte | 570 | 6,98 | 0,3% |
+| 9 | 1 | Pacífico Norte | 297 | 3,26 | 0,2% |
+| — | — | **TOTAL** | **3.300** | **1.999,22** | **100%** |
 
-### Ranking de Comunidades por Concentração de Poluentes
+### Comparação Agregada — Antes do Refinamento (9 regiões)
 
-| Rank | Comunidade | Região | Células | Densidade (p/m³) | Total (p/m³) | Eficiência |
-|------|-----------|--------|---------|-----------------|-------------|-----------|
-| **1** | **7** | **Atlântico Sul** | **278** | — | **~1164,97** | **Máxima** |
-| 2 | 4 | Oceano Índico | 461 | — | — | Muito Alta |
-| 3 | 2 | Pacífico Equatorial | 602 | — | — | Alta |
-| 4 | 5 | Mar da China | 146 | — | — | Moderada |
-| 5 | 6 | Mediterrâneo | 164 | — | — | Moderada |
-| 6 | 8 | Pacífico Sul | 674 | — | — | Baixa-Moderada |
-| 7 | 1 | Pacífico Norte | 297 | — | — | Baixa |
-| 8 | 3 | Atlântico Norte | 570 | — | — | Baixa |
+| Métrica | Dijkstra Simples | Dijkstra Híbrido | A\* |
+|---------|-------------------|--------------------|------|
+| Distância média (km) | 74.686 | 73.530 | 73.484 |
+| Eficiência média (densidade/km) | 0,003543 | 0,004060 | **0,004133** |
+| Regiões com maior eficiência (de 9) | 2 | 2 | **5** |
+| Tempo médio de execução (ms) | ≈3.569 | ≈3.625 | **≈239** |
 
-> **Nota:** Métricas detalhadas por comunidade disponíveis nos arquivos `output/relatorio_comunidades.csv` e `output/relatorio_rotas.csv`.
+### Ganho do Refinamento 2-opt (9 regiões)
 
-### Eficiência Operacional da Comunidade Prioritária
+| Estratégia | Distância antes (km) | Distância depois (km) | Redução |
+|------------|------------------------|--------------------------|---------|
+| Simples + 2-opt | 74.686 | 63.793 | 14,6% |
+| **Híbrido + 2-opt** | 73.530 | 58.466 | **20,5%** |
+| A\* + 2-opt | 73.484 | 63.136 | 14,1% |
 
-| Comunidade | Classificação |
-|-----------|--------------|
-| 7 (Atlântico Sul) | Concentrada — rotas convergem para núcleos de alta densidade |
+O 2-opt reduz distância em **todas as 9 regiões, para os 3 algoritmos**, sem mudar a densidade coletada (ele só reordena, não adiciona nem remove células). O ganho é maior no Híbrido porque sua construção gulosa, guiada por densidade, cria mais desvios ineficientes — exatamente o tipo de coisa que o 2-opt corrige.
 
-**Implicação:** A função de custo híbrida valida eficiência operacional mesmo com múltiplos pontos de origem, com convergência para hotspots de alta concentração.
+**O refinamento muda qual estratégia é a melhor:** antes do 2-opt, o A\* sozinho vencia em eficiência 5 das 9 regiões. Depois do refinamento, é o **Híbrido+2opt** que vence 5 das 9 — inclusive a Região 4 (Índico), a mais importante. Mas o **A\*+2opt** chega a 97% dessa eficiência no Índico (0,019871 vs. 0,020460) gastando cerca de **12× menos tempo total** de construção+refinamento (≈429 ms vs. ≈5.183 ms). Onde tempo de computação importa, A\*+2opt é a escolha mais prática; onde só a qualidade da rota importa, Híbrido+2opt é marginalmente melhor.
+
+---
+
+## ❓ Por que não Louvain?
+
+A ideia inicial do projeto era usar detecção de comunidades via Louvain — é por isso que versões anteriores deste README e do artigo associado mencionavam o algoritmo. Ao longo do desenvolvimento, a decisão foi manter a **classificação geográfica por caixas fixas de lat/lon** em vez disso, por alguns motivos:
+
+1. **O grafo já é geograficamente restrito.** Arestas só existem entre células a até 800 km, então Louvain tenderia a redescobrir agrupamentos parecidos com os que a classificação por bacia já dá — sem nome de bacia oceânica, exigindo inferência manual pra rotular cada comunidade encontrada.
+2. **Interpretabilidade operacional.** "Mande o navio pro Índico" é uma decisão que um operador entende e executa. Uma comunidade descoberta por modularidade pode não corresponder a nenhuma bacia reconhecível.
+3. **Reprodutibilidade.** O modelo atual é determinístico (mesma entrada → mesma saída, sempre). Louvain tem uma etapa de otimização sensível à ordem/inicialização; sem fixar seed com cuidado, duas execuções podem convergir para agrupamentos ligeiramente diferentes.
+4. **Custo de retrabalho.** Trocar a classificação muda todas as 9 regiões, o que exigiria recalcular todas as tabelas, figuras e análises deste README e do artigo associado.
+
+Louvain continua sendo uma extensão futura legítima (ver abaixo) — a decisão é sobre fazer isso agora vs. depois, não sobre a técnica em si.
 
 ---
 
@@ -108,46 +124,52 @@ onde:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Main.java                             │
-│  (Orquestrador do pipeline experimental)                    │
+│                        Main.java                              │
+│  (Orquestrador do pipeline experimental)                      │
 └────────────────┬────────────────────────────────────────────┘
-                 │
-    ┌────────────┼────────────┬────────────┬────────────┐
-    ▼            ▼            ▼            ▼            ▼
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-│Leitor    │ │PreProc   │ │Detector  │ │Dijkstra  │ │GeoUtils  │
-│Dados     │ │essador   │ │Comunidade│ │Híbrido   │ │          │
-└────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘
-     │            │            │            │            │
-     └────────────┼────────────┼────────────┼────────────┘
+                  │
+    ┌─────────────┼─────────────┬─────────────┬─────────────┐
+    ▼             ▼             ▼             ▼             ▼
+┌──────────┐ ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌──────────┐
+│Leitor    │ │PreProc   │ │Detector   │ │Dijkstra  │ │AStar     │
+│Dados     │ │essador   │ │Comunidades│ │Hibrido   │ │          │
+└────┬─────┘ └────┬─────┘ └────┬──────┘ └────┬─────┘ └────┬─────┘
+     │            │            │             │            │
+     └────────────┼────────────┴─────────────┴────────────┘
                   ▼
          ┌────────────────────┐
-         │ OtimizadorRotas    │
-         │ (Geração paralela) │
+         │ OtimizadorRotas     │
+         │ (Simples/Híbrido/  │
+         │  A* + estatísticas) │
          └────────┬───────────┘
                   │
-                  ▼
-         ┌────────────────────┐
-         │GeradorRelatorio    │
-         │(TXT/CSV/Gephi)     │
-         └────────────────────┘
+         ┌────────┴───────────┐
+         ▼                    ▼
+┌──────────────────┐ ┌────────────────────┐
+│ BuscaLocal2Opt    │ │ GeradorRelatorio    │
+│ (refinamento)     │ │ (comparação, CSV)   │
+└───────────────────┘ └─────────────────────┘
 ```
 
 ### Descrição dos Módulos
 
 | Classe | Responsabilidade | Dependências |
-|--------|------------------|--------------|
-| `Main.java` | Orquestra pipeline: leitura → pré-processamento → grafo → comunidades → rotas → relatórios | Todas |
-| `LeitorDeDados.java` | Leitura, validação e filtragem do arquivo `.dat` (AOMI) | `AmostraPonto.java` |
-| `PreProcessador.java` | Agregação espacial em células $1° \times 1°$; cálculo de densidade e centróides | `AmostraPonto.java` |
-| `AmostraPonto.java` | Modelo de domínio para amostras e células agregadas | Nenhuma |
-| `Grafo.java` | Construção, manutenção, análise e serialização do grafo ponderado | `Aresta.java`, `AmostraPonto.java` |
-| `Aresta.java` | Implementação da função de custo híbrido custo-densidade | `GeoUtils.java` |
-| `GeoUtils.java` | Cálculo de distância geográfica real via fórmula de Haversine (WGS-84, raio = 6371 km) | Nenhuma |
-| `DetectorComunidade.java` | Integração do Algoritmo de Louvain; extração de comunidades | `Grafo.java` |
-| `DijkstraHibrido.java` | Implementação customizada de Dijkstra com função de custo multiobjetivo | `Grafo.java`, `Aresta.java` |
-| `OtimizadorRotas.java` | Seleção de origens (centroide, secundário, máx. densidade); execução de rotas paralelas | `DijkstraHibrido.java` |
-| `GeradorRelatorio.java` | Consolidação de métricas; exportação TXT, CSV e arquivos Gephi | Todas |
+|--------|-------------------|--------------|
+| `Main.java` | Orquestra pipeline: leitura → pré-processamento → grafo → classificação regional → rotas (3 algoritmos + 2-opt) → relatórios | Todas |
+| `LeitorDeDados.java` | Leitura, validação e filtragem de `data/survey_data.csv` (AOMI) | `AmostraPonto.java` |
+| `PreProcessador.java` | Agregação espacial em células $1° \times 1°$; cálculo de densidade média e centroides | `AmostraPonto.java` |
+| `AmostraPonto.java` | Modelo de domínio para amostras individuais | Nenhuma |
+| `Grafo.java` | Construção do grafo por limiar de 800 km (Haversine) com garantia de conectividade | `Aresta.java` |
+| `Aresta.java` | Estrutura de dados da aresta (destino, distância, peso) | Nenhuma |
+| `DetectorComunidades.java` | Classificação regional por caixas fixas de lat/lon | `Grafo.java` |
+| `DijkstraHibrido.java` | Dijkstra com custo multiobjetivo; usado tanto para Simples ($\beta=0$) quanto Híbrido ($\beta=0,5$) | `Grafo.java`, `Aresta.java` |
+| `AStar.java` | Busca A\* ponto-a-ponto com heurística Haversine; conta nós explorados | `Grafo.java`, `GeoUtils.java` |
+| `BuscaLocal2Opt.java` | Refinamento 2-opt: reordena rota já construída para reduzir distância | `GeoUtils.java` |
+| `GeoUtils.java` | Cálculo de distância Haversine (WGS-84) | Nenhuma |
+| `OtimizadorRotas.java` | Construção gulosa de rotas por região para os 3 algoritmos; orquestra chamada ao 2-opt; cálculo de estatísticas | `DijkstraHibrido.java`, `AStar.java`, `BuscaLocal2Opt.java` |
+| `GeradorRelatorio.java` | Relatório comparativo dos 3 algoritmos; exportação CSV para gráficos | Todas as estatísticas |
+| `ResultadoRota.java` | Registro de resultado por algoritmo/região para o ranking final | Nenhuma |
+| `DijkstraSimples.java` | Implementação alternativa de Dijkstra simples; **não utilizada no fluxo atual** (o "Simples" ativo é `DijkstraHibrido` com $\beta=0$) | `Grafo.java` |
 
 ---
 
@@ -156,31 +178,27 @@ onde:
 ```
 AOMI-GRAPH-CENTRALITY/
 ├── data/
-│   └── survey_data.csv                    # Dados brutos da base AOMI
+│   └── survey_data.csv
 │
 ├── src/
-│   ├── AmostraPonto.java               # Modelo de domínio
-│   ├── Aresta.java                     # Função de custo híbrido
-│   ├── DetectorComunidade.java         # Integração Louvain
-│   ├── DijkstraHibrido.java            # Dijkstra multiobjetivo
-│   ├── GeoUtils.java                   # Cálculo Haversine (WGS-84)
-│   ├── Grafo.java                      # Construção e análise de grafo
-│   ├── GeradorRelatorio.java           # Exportação de resultados
-│   ├── LeitorDeDados.java              # Parser AOMI
-│   ├── Main.java                       # Orquestrador
-│   ├── OtimizadorRotas.java            # Geração de rotas paralelas
-│   └── PreProcessador.java             # Agregação espacial
+│   ├── AmostraPonto.java
+│   ├── Aresta.java
+│   ├── AStar.java
+│   ├── BuscaLocal2Opt.java
+│   ├── DetectorComunidades.java
+│   ├── DijkstraHibrido.java
+│   ├── DijkstraSimples.java            # não usado no fluxo atual
+│   ├── GeoUtils.java
+│   ├── Grafo.java
+│   ├── GeradorRelatorio.java
+│   ├── LeitorDeDados.java
+│   ├── Main.java
+│   ├── OtimizadorRotas.java
+│   ├── PreProcessador.java
+│   └── ResultadoRota.java
 │
-├── output/
-│   ├── relatorio_analitico.txt         # Relatório analítico completo
-│   ├── relatorio_comunidades.csv       # Ranking e métricas por região
-│   ├── relatorio_rotas.csv             # Dados de rotas para gráficos
-│   ├── grafo_nodes.csv                 # Nós para visualização (Gephi)
-│   └── grafo_edges.csv                 # Arestas para visualização (Gephi)
-│
-├── routes/
-│   └── rota_regiao_XX.csv              # Rotas geradas por comunidade
-│
+├── routes/                              # rotas de cobertura por região (CSV)
+├── graficos/                            # dados exportados para plotagem
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -194,123 +212,90 @@ AOMI-GRAPH-CENTRALITY/
 
 - **Java Development Kit (JDK) 8+** instalado e configurado no `PATH`
 - Sistema operacional: Windows, macOS ou Linux
-- Mínimo: 512 MB de RAM disponível (recomendado: 2+ GB)
 
 ### Compilação
 
-A partir do diretório `src/`:
+A partir da raiz do projeto:
 
 ```bash
-javac *.java
+javac src/*.java -d out
 ```
 
 ### Execução
 
 ```bash
-java Main
+java -cp out Main
 ```
 
-A execução gerará arquivos em `output/` (relatórios e dados Gephi) e `routes/` (rotas por comunidade).
+Gera `relatorio_analise_microplasticos.txt`, `routes/*.csv`, `graficos/comparacao_algoritmos.csv`, `graficos/comparacao_2opt.csv`, e `grafo_nodes.csv`/`grafo_edges.csv` para Gephi.
 
 ---
 
 ## 🔬 Reprodutibilidade Científica
 
-Este repositório foi estruturado para garantir **reprodutibilidade total** dos resultados. O modelo é **determinístico** — reexecuções múltiplas e recompilações completas produzem resultados idênticos.
-
 ### Parâmetros Fixos
 
-- **Discretização espacial:** Células de $1° \times 1°$ latitude/longitude
-- **Conectividade:** 8-vizinhança (Moore)
-- **Algoritmo de comunidades:** Louvain com modularity optimization
-- **Métrica de distância:** Haversine (WGS-84, raio = 6371 km) — implementada em `GeoUtils.java`
-- **Fatores de balanceamento:** $\alpha$ e $\beta$ configuráveis em `Aresta.java`
+- **Discretização espacial:** células de $1° \times 1°$ latitude/longitude
+- **Limiar de conectividade do grafo:** 800 km (Haversine), com fallback ao vizinho mais próximo
+- **Parâmetros da função de custo:** $\alpha=1,0$; $\beta=0,5$ (Híbrido/A\*) ou $\beta=0$ (Simples)
+- **Classificação regional:** caixas fixas de lat/lon por bacia oceânica (ver "Por que não Louvain?")
+- **Métrica de distância:** Haversine (WGS-84)
 
-### Reprodução Exata
+### Reprodução
 
-Para reproduzir os resultados:
+1. Obtenha os dados de monitoramento da base AOMI oficial (https://aomi.env.go.jp/)
+2. Salve como `data/survey_data.csv`
+3. Compile e execute conforme a seção acima
+4. Compare `relatorio_analise_microplasticos.txt` e `graficos/*.csv` com as tabelas deste README
 
-1. Obtenha o arquivo `amostras.dat` da base AOMI oficial (https://aomi.env.go.jp/)
-2. Coloque em `data/amostras.dat`
-3. Compile e execute `Main.java`
-4. Compare `output/relatorio_comunidades.csv` e `output/relatorio_rotas.csv` com as tabelas do artigo
-
-Desvios mínimos (<0,1%) são esperados devido a arredondamentos em ponto flutuante.
-
----
-
-## 📌 Changelog
-
-### Versão: `experimento-densidade`
-
-#### Implementação da Distância Geográfica Real (Haversine)
-Substituição de cálculo aproximado por distância esférica real via criação de `GeoUtils.java`, usando o modelo WGS-84 com raio da Terra = 6371 km. As arestas do grafo passam a refletir distâncias reais entre coordenadas, conferindo validade geográfica global aos resultados (ex: totais coerentes na ordem de 11k–44k km).
-
-#### Atualização da Função de Custo
-Consolidação do Dijkstra híbrido com a função `custo = (α * distancia) / (1 + β * densidade)`, refinando o equilíbrio entre custo de navegação e potencial de coleta.
-
-#### Geração Completa de Relatórios
-Implementação de `GeradorRelatorio.java` com exportação para `.txt` (relatório analítico), `.csv` (dados para gráficos) e rotas individuais por região — incluindo ranking de regiões, densidade total, eficiência e recomendações operacionais.
-
-#### Exportação para Visualização (Gephi)
-Geração de `grafo_nodes.csv` e `grafo_edges.csv` (além de subgrafos por região) para análise estrutural e visualização de comunidades em ferramentas externas.
-
-#### Estruturação das Rotas
-Rotas geradas por comunidade salvas automaticamente em `routes/rota_regiao_XX.csv`, contendo ordem de visita, coordenadas e densidade de cada célula.
-
-#### Correção de Inconsistência e Estabilização
-Resultado anterior indicava Região 4 (Índico) como dominante; após correção de compilação desatualizada e reexecução, a **Região 7 (Atlântico Sul)** é confirmada como dominante de forma consistente e reproduzível.
+Pequenos desvios (<0,1%) são esperados por arredondamento em ponto flutuante.
 
 ---
 
 ## 🚧 Limitações do Modelo Atual
 
-1. **Estático:** Não incorpora dinâmica temporal de correntes oceânicas ou variabilidade sazonal
-2. **Capacidade infinita:** Não modela restrições realísticas (carga máxima, autonomia de combustível)
-3. **Sem otimização TSP:** Não resolve o Problema do Caixeiro Viajante para sequenciamento ótimo intra-rota
-4. **Sem custo operacional:** Não inclui custos fixos (manutenção, pessoal) nas análises
-5. **Sem incerteza:** Presume distribuição de poluentes determinística
-
-Essas limitações são discutidas como oportunidades de aprimoramento no artigo científico associado.
+1. **Classificação regional geográfica, não topológica** (ver "Por que não Louvain?").
+2. **Roteamento sobre o grafo completo:** os algoritmos buscam no grafo inteiro (3.300 nós) mesmo ao cobrir uma única região, causando "vazamento" de densidade entre regiões vizinhas e custo computacional extra para o A\* em regiões dispersas (ex.: Mar da China, 134.380 nós explorados para 146 células).
+3. **Estático:** não incorpora dinâmica temporal de correntes oceânicas ou variabilidade sazonal.
+4. **Capacidade infinita:** não modela restrições realísticas (carga máxima, autonomia, múltiplos navios).
+5. **Sem métricas de centralidade:** apesar do nome do repositório, nenhuma métrica de centralidade (grau, betweenness) é calculada atualmente.
 
 ---
 
-## 🔮 Extensões Futuras Recomendadas
+## 🔮 Extensões Futuras
 
-### Curto Prazo
+### Curto prazo
 
-- Implementação de A* com heurística geográfica
-- Integração de variáveis ambientais (correntes, sazonalidade)
-- Análise de sensibilidade dos parâmetros $\alpha$ e $\beta$ da função de custo
+- Restringir a busca do A\* a um subgrafo induzido pela região-alvo, eliminando o custo excessivo observado no Mar da China.
+- Análise de sensibilidade do parâmetro $\beta$ da função de custo.
 
-### Médio Prazo
+### Médio prazo
 
-- Simulação de coleta real com restrições de capacidade
-- Otimização multi-frota
-- Implementação de TSP via meta-heurísticas (simulated annealing, algoritmo genético)
-- Integração de modelos preditivos (Machine Learning) para antecipação de hotspots
+- Implementação real de detecção de comunidades por modularidade (Louvain), substituindo a classificação por caixas fixas — ver justificativa da escolha atual acima.
+- Cálculo de métricas de centralidade (grau, betweenness) sobre o grafo, alinhando o projeto ao seu próprio nome.
+- Enriquecimento dos nós com atributos ambientais adicionais (correntes marinhas, profundidade, temperatura, distância da costa).
 
-### Longo Prazo
+### Longo prazo
 
-- Visualização 3D (globo interativo)
-- Integração com sistemas reais de navios coletores (validação empírica)
-- Cooperação internacional para otimização de rotas em bacias compartilhadas
+- Roteamento multi-frota com restrições de capacidade e autonomia.
+- Validação empírica com dados reais de embarcações coletoras.
 
 ---
 
 ## 📚 Referências Científicas
 
 - **[Dijkstra, 1959]** Dijkstra, E. W. "A note on two problems in connexion with graphs." *Numerische Mathematik*, vol. 1, no. 1, pp. 269–271.
-- **[Blondel et al., 2008]** Blondel, V. D., et al. "Fast unfolding of communities in large networks." *Journal of Statistical Mechanics: Theory and Experiment*, vol. 2008, no. 10, p. P10008.
+- **[Hart, Nilsson & Raphael, 1968]** Hart, P. E., Nilsson, N. J., Raphael, B. "A Formal Basis for the Heuristic Determination of Minimum Cost Paths." *IEEE Transactions on Systems Science and Cybernetics*, vol. 4, no. 2, pp. 100–107.
+- **[Croes, 1958]** Croes, G. A. "A Method for Solving Traveling-Salesman Problems." *Operations Research*, vol. 6, no. 6, pp. 791–812.
+- **[Blondel et al., 2008]** Blondel, V. D., et al. "Fast unfolding of communities in large networks." *Journal of Statistical Mechanics: Theory and Experiment*, vol. 2008, no. 10, p. P10008. *(referência para a extensão futura de detecção de comunidades — não implementada neste repositório; ver "Por que não Louvain?")*
 - **[Jambeck et al., 2015]** Jambeck, J. R., et al. "Plastic waste inputs from land into the ocean." *Science*, vol. 347, no. 6223, pp. 768–771.
-- **[Freeman, 1977]** Freeman, L. C. "A set of measures of centrality based on betweenness." *Sociometry*, vol. 40, no. 1, pp. 35–41.
 
 ---
 
 ## 👩‍💻 Autoria e Contribuições
 
-**Autora Principal:** Lorena Ávila  
-**Instituição:** Engenharia de Computação — CEFET-MG  
+**Autora Principal:** Lorena Ávila
+**Instituição:** Engenharia de Computação — CEFET-MG
 **Contato:** lorenaavila15@outlook.com
 
 Para contribuições, issues ou pull requests, abra uma issue no repositório GitHub.
