@@ -4,224 +4,229 @@ import java.io.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        
+
         String caminhoCSV = "data/survey_data.csv";
-        
-        // 1. Leitura
+
         LeitorDeDados leitor = new LeitorDeDados();
         List<AmostraPonto> amostras = leitor.lerAmostras(caminhoCSV);
         System.out.println("Total de amostras carregadas: " + amostras.size());
-        
-        // 2. Pré-processamento
+
         PreProcessador pre = new PreProcessador();
         Map<String, List<AmostraPonto>> celulas = pre.agruparPorCoordenadas(amostras);
         Map<String, Double> densidadesMedias = pre.calcularDensidadeMedia(celulas);
         Map<String, double[]> centroides = pre.calcularCentroides(celulas);
+
         System.out.println("Células: " + celulas.size());
-        System.out.println("Densidades calculadas: " + densidadesMedias.size());
-        
-        // 3. Construção do grafo
-        Grafo grafo = new Grafo(densidadesMedias);
+
+        Grafo grafo = new Grafo(densidadesMedias, centroides);
         System.out.println("Grafo construído.");
-        
-        // 4. Detecção de comunidades
+
         DetectorComunidades detector = new DetectorComunidades(grafo);
-        Map<String, Integer> mapRegiao = detector.detectarComunidadesPorRegiao();
+        detector.detectarComunidadesPorRegiao();
         Map<Integer, List<String>> grupos = new TreeMap<>(detector.agruparPorComunidade());
+
         detector.imprimirEstatisticas(centroides, densidadesMedias);
-        
-        // 5. Otimização de rotas
+
         OtimizadorRotas opt = new OtimizadorRotas(grafo, densidadesMedias, centroides);
-        
-        // Pasta para rotas
+
         Path outDir = Paths.get("routes");
         if (!Files.exists(outDir)) Files.createDirectories(outDir);
-        
-        // Armazenar estatísticas para relatório
-        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasRotas = new HashMap<>();
-        
-        // 6. Gerar rotas por região
+
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasSimples  = new HashMap<>();
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasHibrido  = new HashMap<>();
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasAEstrela = new HashMap<>();
+
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasSimples2opt  = new HashMap<>();
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasHibrido2opt  = new HashMap<>();
+        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticasAEstrela2opt = new HashMap<>();
+
+        List<ResultadoRota> resultados = new ArrayList<>();
+
         System.out.println("\n=== GERANDO ROTAS OTIMIZADAS ===");
-        
-        // DEBUG: ver ordem das regiões
         System.out.println("Ordem das regiões: " + grupos.keySet());
-        for (Map.Entry<Integer, List<String>> entry : grupos.entrySet()) {
-            int idx = entry.getKey();
-            List<String> nodes = entry.getValue();
-            
-            if (nodes.size() < 5) continue;
-            
-            System.out.printf("\n--- Região %d: nós=%d ---\n", idx, nodes.size());
-            
-            List<String> rota = opt.calcularRotaCobertura(nodes);
-            OtimizadorRotas.EstatisticasRota stats = opt.calcularEstatisticas(rota);
-            stats.imprimir("Regiao_" + idx);
-            System.out.println("Rota: " + rota);
-            System.out.println("Distância total (custo): " + stats.distanciaTotal);
-            System.out.println("Microplástico coletado: " + stats.densidadeTotal);
-            
-            // Armazenar estatísticas
-            estatisticasRotas.put(idx, stats);
-            
-            // Salvar rota em CSV
-            Path out = outDir.resolve(String.format("rota_regiao_%02d.csv", idx));
-            try (BufferedWriter bw = Files.newBufferedWriter(out)) {
-                bw.write("ordem,celula,lat,lon,densidade\n");
-                for (int i = 0; i < rota.size(); i++) {
-                    String cel = rota.get(i);
-                    double[] c = centroides.getOrDefault(cel, new double[]{0.0,0.0});
-                    double d = densidadesMedias.getOrDefault(cel, 0.0);
-                    bw.write(String.format(Locale.US, "%d,%s,%.6f,%.6f,%.6f\n", 
-                        i+1, cel, c[0], c[1], d));
-                }
-            }
-            System.out.println("Rota salva: " + out.toString());
-        }
-        
-        // 7. GERAÇÃO DO RELATÓRIO COMPLETO
-        System.out.println("\n=== GERANDO RELATÓRIO ANALÍTICO ===");
-        
-        GeradorRelatorio relatorio = new GeradorRelatorio(
-            densidadesMedias,
-            centroides,
-            grupos,
-            estatisticasRotas
-        );
-        
-        // Imprimir relatório no terminal
-        relatorio.imprimirRelatorioCompleto();
-        
-        // Exportar relatório para arquivo
-        relatorio.exportarRelatorio("relatorio_analise_microplasticos.txt");
-        
-        // Exportar dados para gráficos
-        relatorio.exportarDadosGraficos("graficos");
-        
-        // 8. Exportar para Gephi
-        exportarParaGephi(densidadesMedias, centroides, mapRegiao, 
-            grupos, estatisticasRotas, grafo);
-        
-        System.out.println("\n=== PROCESSAMENTO FINALIZADO ===");
-        System.out.println("Arquivos gerados:");
-        System.out.println("  - routes/rota_regiao_XX.csv (rotas por região)");
-        System.out.println("  - relatorio_analise_microplasticos.txt");
-        System.out.println("  - graficos/densidade_por_regiao.csv");
-        System.out.println("  - graficos/eficiencia_por_regiao.csv");
-        System.out.println("  - grafo_completo_nodes.csv e edges.csv");
-        System.out.println("  - regiao_X_nodes.csv e edges.csv (um par por região)");
-    }
-    
-    /**
-     * Exporta grafos para Gephi
-     */
-    private static void exportarParaGephi(
-        Map<String, Double> densidades,
-        Map<String, double[]> centroides,
-        Map<String, Integer> comunidades,
-        Map<Integer, List<String>> grupos,
-        Map<Integer, OtimizadorRotas.EstatisticasRota> estatisticas,
-        Grafo grafo
-    ) throws IOException {
-        
-        // 1. Grafo completo
-        exportarGrafoCompleto(densidades, centroides, comunidades, grafo);
-        
-        // 2. Sub-grafos por região
-        exportarSubGrafosPorRegiao(grupos, densidades, centroides, grafo);
-        
-        System.out.println("\n✓ Arquivos Gephi exportados com sucesso!");
-    }
-    
-    private static void exportarGrafoCompleto(
-        Map<String, Double> densidades,
-        Map<String, double[]> centroides,
-        Map<String, Integer> comunidades,
-        Grafo grafo
-    ) throws IOException {
-        
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                Paths.get("grafo_completo_nodes.csv"))) {
-            writer.write("Id,Label,Latitude,Longitude,Densidade,Comunidade\n");
-            
-            for (Map.Entry<String, Double> entry : densidades.entrySet()) {
-                String id = entry.getKey();
-                double densidade = entry.getValue();
-                double[] coords = centroides.get(id);
-                int comunidade = comunidades.getOrDefault(id, -1);
-                
-                writer.write(String.format(Locale.US, "%s,%s,%.4f,%.4f,%.6f,%d\n",
-                    id, id, coords[0], coords[1], densidade, comunidade));
-            }
-        }
-        
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                Paths.get("grafo_completo_edges.csv"))) {
-            writer.write("Source,Target,Weight,Type\n");
-            
-            Map<String, List<Aresta>> adjacencia = grafo.getAdjacencia();
-            
-            for (Map.Entry<String, List<Aresta>> entry : adjacencia.entrySet()) {
-                String source = entry.getKey();
-                for (Aresta aresta : entry.getValue()) {
-                    String target = aresta.getDestino();
-                    double peso = aresta.getPeso();
-                    
-                    writer.write(String.format(Locale.US, "%s,%s,%.2f,Directed\n",
-                        source, target, peso));
-                }
-            }
-        }
-    }
-    
-    private static void exportarSubGrafosPorRegiao(
-        Map<Integer, List<String>> grupos,
-        Map<String, Double> densidades,
-        Map<String, double[]> centroides,
-        Grafo grafo
-    ) throws IOException {
-        
-        for (Map.Entry<Integer, List<String>> entry : grupos.entrySet()) {
-            int regiaoId = entry.getKey();
-            List<String> celulas = entry.getValue();
-            
-            if (celulas.size() < 5) continue;
-            
-            Set<String> celulasDaRegiao = new HashSet<>(celulas);
-            
-            // Nodes
-            try (BufferedWriter writer = Files.newBufferedWriter(
-                    Paths.get("regiao_" + regiaoId + "_nodes.csv"))) {
-                writer.write("Id,Label,Latitude,Longitude,Densidade\n");
-                
-                for (String celula : celulas) {
-                    double densidade = densidades.get(celula);
-                    double[] coords = centroides.get(celula);
-                    
-                    writer.write(String.format(Locale.US, "%s,%s,%.4f,%.4f,%.6f\n",
-                        celula, celula, coords[0], coords[1], densidade));
-                }
-            }
-            
-            // Edges
-            try (BufferedWriter writer = Files.newBufferedWriter(
-                    Paths.get("regiao_" + regiaoId + "_edges.csv"))) {
-                writer.write("Source,Target,Weight,Type\n");
-                
-                Map<String, List<Aresta>> adjacencia = grafo.getAdjacencia();
-                
-                for (String source : celulas) {
-                    for (Aresta aresta : adjacencia.getOrDefault(source, new ArrayList<>())) {
-                        String target = aresta.getDestino();
-                        
-                        if (!celulasDaRegiao.contains(target)) continue;
-                        
-                        double peso = aresta.getPeso();
-                        
-                        writer.write(String.format(Locale.US, "%s,%s,%.2f,Directed\n",
-                            source, target, peso));
+
+        Path graficosDir = Paths.get("graficos");
+        if (!Files.exists(graficosDir)) Files.createDirectories(graficosDir);
+
+        try (BufferedWriter bw2opt = Files.newBufferedWriter(graficosDir.resolve("comparacao_2opt.csv"))) {
+            bw2opt.write("regiao,algoritmo,dist_antes,dist_depois,eff_antes,eff_depois,melhoria_pct,tempo_2opt_ms\n");
+
+            for (Map.Entry<Integer, List<String>> entry : grupos.entrySet()) {
+
+                int idx = entry.getKey();
+                List<String> nodes = entry.getValue();
+
+                if (nodes.size() < 5) continue;
+
+                System.out.printf("\n--- Região %d: nós=%d ---%n", idx, nodes.size());
+
+                opt.calcularRotaSimples(nodes);
+                long inicioS = System.nanoTime();
+                for (int rep = 0; rep < 10; rep++) opt.calcularRotaSimples(nodes);
+                long fimS = System.nanoTime();
+
+                List<String> rotaS = opt.calcularRotaSimples(nodes);
+                OtimizadorRotas.EstatisticasRota statsS = opt.calcularEstatisticas(rotaS);
+                statsS.tempoMs = (fimS - inicioS) / 10_000_000.0;
+
+                opt.calcularRotaCobertura(nodes);
+                long inicioH = System.nanoTime();
+                for (int rep = 0; rep < 10; rep++) opt.calcularRotaCobertura(nodes);
+                long fimH = System.nanoTime();
+
+                List<String> rotaH = opt.calcularRotaCobertura(nodes);
+                OtimizadorRotas.EstatisticasRota statsH = opt.calcularEstatisticas(rotaH);
+                statsH.tempoMs = (fimH - inicioH) / 10_000_000.0;
+
+                opt.calcularRotaCobertura_AEstrela(nodes, centroides);
+                long inicioA = System.nanoTime();
+                for (int rep = 0; rep < 10; rep++) opt.calcularRotaCobertura_AEstrela(nodes, centroides);
+                long fimA = System.nanoTime();
+
+                OtimizadorRotas.ResultadoCobertura coberturaA =
+                        opt.calcularRotaCobertura_AEstrela(nodes, centroides);
+                List<String> rotaA = coberturaA.rota;
+                OtimizadorRotas.EstatisticasRota statsA = opt.calcularEstatisticas(rotaA);
+                statsA.tempoMs       = (fimA - inicioA) / 10_000_000.0;
+                statsA.nosExplorados = coberturaA.totalNosExplorados;
+
+                System.out.println("\nComparação (antes do 2-opt):");
+                System.out.printf("Simples  -> Dist: %.2f | Eff: %.6f | Tempo: %.2f ms%n",
+                        statsS.distanciaTotal, statsS.getEficiencia(), statsS.tempoMs);
+                System.out.printf("Híbrido  -> Dist: %.2f | Eff: %.6f | Tempo: %.2f ms%n",
+                        statsH.distanciaTotal, statsH.getEficiencia(), statsH.tempoMs);
+                System.out.printf("A*       -> Dist: %.2f | Eff: %.6f | Tempo: %.2f ms | Nós: %d%n",
+                        statsA.distanciaTotal, statsA.getEficiencia(), statsA.tempoMs, statsA.nosExplorados);
+
+                long t0;
+
+                t0 = System.nanoTime();
+                List<String> rotaS2opt = opt.aplicar2Opt(rotaS);
+                double tempoS2opt = (System.nanoTime() - t0) / 1_000_000.0;
+                OtimizadorRotas.EstatisticasRota statsS2opt = opt.calcularEstatisticas(rotaS2opt);
+                statsS2opt.tempoMs = tempoS2opt;
+
+                t0 = System.nanoTime();
+                List<String> rotaH2opt = opt.aplicar2Opt(rotaH);
+                double tempoH2opt = (System.nanoTime() - t0) / 1_000_000.0;
+                OtimizadorRotas.EstatisticasRota statsH2opt = opt.calcularEstatisticas(rotaH2opt);
+                statsH2opt.tempoMs = tempoH2opt;
+
+                t0 = System.nanoTime();
+                List<String> rotaA2opt = opt.aplicar2Opt(rotaA);
+                double tempoA2opt = (System.nanoTime() - t0) / 1_000_000.0;
+                OtimizadorRotas.EstatisticasRota statsA2opt = opt.calcularEstatisticas(rotaA2opt);
+                statsA2opt.tempoMs = tempoA2opt;
+
+                System.out.println("\nApós refinamento 2-opt:");
+                System.out.printf("Simples+2opt -> Dist: %.2f (%.1f%% menor) | Eff: %.6f | 2opt: %.2f ms%n",
+                        statsS2opt.distanciaTotal,
+                        100.0 * (statsS.distanciaTotal - statsS2opt.distanciaTotal) / statsS.distanciaTotal,
+                        statsS2opt.getEficiencia(), tempoS2opt);
+                System.out.printf("Híbrido+2opt -> Dist: %.2f (%.1f%% menor) | Eff: %.6f | 2opt: %.2f ms%n",
+                        statsH2opt.distanciaTotal,
+                        100.0 * (statsH.distanciaTotal - statsH2opt.distanciaTotal) / statsH.distanciaTotal,
+                        statsH2opt.getEficiencia(), tempoH2opt);
+                System.out.printf("A*+2opt      -> Dist: %.2f (%.1f%% menor) | Eff: %.6f | 2opt: %.2f ms%n",
+                        statsA2opt.distanciaTotal,
+                        100.0 * (statsA.distanciaTotal - statsA2opt.distanciaTotal) / statsA.distanciaTotal,
+                        statsA2opt.getEficiencia(), tempoA2opt);
+
+                bw2opt.write(String.format(Locale.US, "%d,Simples,%.4f,%.4f,%.6f,%.6f,%.2f,%.4f%n",
+                        idx, statsS.distanciaTotal, statsS2opt.distanciaTotal,
+                        statsS.getEficiencia(), statsS2opt.getEficiencia(),
+                        100.0 * (statsS.distanciaTotal - statsS2opt.distanciaTotal) / statsS.distanciaTotal,
+                        tempoS2opt));
+                bw2opt.write(String.format(Locale.US, "%d,Hibrido,%.4f,%.4f,%.6f,%.6f,%.2f,%.4f%n",
+                        idx, statsH.distanciaTotal, statsH2opt.distanciaTotal,
+                        statsH.getEficiencia(), statsH2opt.getEficiencia(),
+                        100.0 * (statsH.distanciaTotal - statsH2opt.distanciaTotal) / statsH.distanciaTotal,
+                        tempoH2opt));
+                bw2opt.write(String.format(Locale.US, "%d,AEstrela,%.4f,%.4f,%.6f,%.6f,%.2f,%.4f%n",
+                        idx, statsA.distanciaTotal, statsA2opt.distanciaTotal,
+                        statsA.getEficiencia(), statsA2opt.getEficiencia(),
+                        100.0 * (statsA.distanciaTotal - statsA2opt.distanciaTotal) / statsA.distanciaTotal,
+                        tempoA2opt));
+
+                estatisticasSimples.put(idx, statsS);
+                estatisticasHibrido.put(idx, statsH);
+                estatisticasAEstrela.put(idx, statsA);
+
+                estatisticasSimples2opt.put(idx, statsS2opt);
+                estatisticasHibrido2opt.put(idx, statsH2opt);
+                estatisticasAEstrela2opt.put(idx, statsA2opt);
+
+                resultados.add(new ResultadoRota("DijkstraSimples",  idx,
+                        statsS.distanciaTotal, statsS.densidadeTotal, statsS.tempoMs));
+                resultados.add(new ResultadoRota("DijkstraHibrido",  idx,
+                        statsH.distanciaTotal, statsH.densidadeTotal, statsH.tempoMs));
+                resultados.add(new ResultadoRota("AStar",            idx,
+                        statsA.distanciaTotal, statsA.densidadeTotal, statsA.tempoMs));
+                resultados.add(new ResultadoRota("Simples+2opt",     idx,
+                        statsS2opt.distanciaTotal, statsS2opt.densidadeTotal, tempoS2opt));
+                resultados.add(new ResultadoRota("Hibrido+2opt",     idx,
+                        statsH2opt.distanciaTotal, statsH2opt.densidadeTotal, tempoH2opt));
+                resultados.add(new ResultadoRota("AStar+2opt",       idx,
+                        statsA2opt.distanciaTotal, statsA2opt.densidadeTotal, tempoA2opt));
+
+                Path out = outDir.resolve(String.format("rota_regiao_%02d.csv", idx));
+                try (BufferedWriter bw = Files.newBufferedWriter(out)) {
+                    bw.write("ordem,celula,lat,lon,densidade\n");
+                    for (int i = 0; i < rotaH2opt.size(); i++) {
+                        String cel = rotaH2opt.get(i);
+                        double[] c = centroides.getOrDefault(cel, new double[]{0.0, 0.0});
+                        double d = densidadesMedias.getOrDefault(cel, 0.0);
+                        bw.write(String.format(Locale.US,
+                                "%d,%s,%.6f,%.6f,%.6f\n", i + 1, cel, c[0], c[1], d));
                     }
                 }
+                System.out.println("Rota (híbrido+2opt) salva: " + out);
             }
         }
+
+        System.out.println("\n=== GERANDO RELATÓRIO ANALÍTICO ===");
+
+        GeradorRelatorio relatorio = new GeradorRelatorio(
+                densidadesMedias, centroides, grupos,
+                estatisticasSimples, estatisticasHibrido, estatisticasAEstrela
+        );
+
+        relatorio.imprimirRelatorioCompleto();
+        relatorio.exportarRelatorio("relatorio_analise_microplasticos.txt");
+        relatorio.exportarDadosGraficos("graficos");
+
+        System.out.println("\n=== RESUMO DO GANHO COM 2-OPT (média das regiões) ===");
+        imprimirGanhoMedio("Simples", estatisticasSimples, estatisticasSimples2opt);
+        imprimirGanhoMedio("Híbrido", estatisticasHibrido, estatisticasHibrido2opt);
+        imprimirGanhoMedio("A*",      estatisticasAEstrela, estatisticasAEstrela2opt);
+
+        System.out.println("\n=== COMPARAÇÃO DE RESULTADOS ===");
+        resultados.sort((a, b) -> Double.compare(b.getEficiencia(), a.getEficiencia()));
+        for (ResultadoRota r : resultados) {
+            r.imprimir();
+        }
+
+        System.out.println("\n=== PROCESSAMENTO FINALIZADO ===");
+    }
+
+    private static void imprimirGanhoMedio(String nome,
+            Map<Integer, OtimizadorRotas.EstatisticasRota> antes,
+            Map<Integer, OtimizadorRotas.EstatisticasRota> depois) {
+
+        double somaAntes = 0, somaDepois = 0;
+        int n = 0;
+
+        for (Integer k : antes.keySet()) {
+            if (!depois.containsKey(k)) continue;
+            somaAntes  += antes.get(k).distanciaTotal;
+            somaDepois += depois.get(k).distanciaTotal;
+            n++;
+        }
+
+        if (n == 0) return;
+
+        double reducaoPct = 100.0 * (somaAntes - somaDepois) / somaAntes;
+        System.out.printf("%-10s -> Dist. média antes: %10.2f km | depois: %10.2f km | redução: %.2f%%%n",
+                nome, somaAntes / n, somaDepois / n, reducaoPct);
     }
 }

@@ -1,9 +1,11 @@
 public class Aresta {
     private String destino;
-    private double peso;
+    private double peso;       // custo híbrido
+    private double distancia;  // distância real
 
-    public Aresta(String destino, double peso) {
+    public Aresta(String destino, double distancia, double peso) {
         this.destino = destino;
+        this.distancia = distancia;
         this.peso = peso;
     }
 
@@ -13,5 +15,9 @@ public class Aresta {
 
     public double getPeso() {
         return peso;
+    }
+
+    public double getDistancia() {
+        return distancia;
     }
 }
